@@ -88,7 +88,16 @@ app.post('/api/coins', (req,res)=>{
     }
     
     const normalizedEmail = email.toLowerCase().trim();
-    if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
+    
+    // Strict validation - must have allowed emails loaded
+    if (allowedEmails.length === 0) {
+      return res.status(500).json({ 
+        error: 'Server configuration error', 
+        message: 'Unable to verify email authorization' 
+      });
+    }
+    
+    if (!allowedEmails.includes(normalizedEmail)) {
       return res.status(403).json({ 
         error: 'Unauthorized email', 
         message: 'Your email is not authorized to vote' 
