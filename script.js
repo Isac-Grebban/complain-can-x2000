@@ -15,6 +15,7 @@
   const cooldownLoader = document.getElementById('cooldownLoader');
   const cooldownSeconds = document.getElementById('cooldownSeconds');
   const jar = document.querySelector('.jar');
+  const jarNeck = document.querySelector('.jar-neck');
   const API_BASE = ''; // Same origin (server serves static files)
   const MEMBERS = ['Isac','Hannah','Andreas','Karl','Daniel','Doug','Marina'];
   const VALUE_PER_COIN = 5; // SEK per coin
@@ -312,6 +313,7 @@
     memberCounts[member] = (memberCounts[member] || 0) + 1;
     updateDisplay();
     renderMemberStats();
+    liftLid();
     addCoinVisual(member);
     playCoinSound();
     toggleReset();
@@ -479,13 +481,26 @@
   }
   resetBtn.addEventListener('click', reset);
   
-  // Jar swing animation on click
+  // Jar swing animation on click with shake sound
+  let jarShakeAudio;
   if (jar) {
     jar.addEventListener('click', () => {
       jar.classList.add('swinging');
       setTimeout(() => {
         jar.classList.remove('swinging');
       }, 800); // Match animation duration
+      
+      // Play shake sound only if there are coins
+      if (count === 0) return;
+      if (globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      try {
+        if (!jarShakeAudio) {
+          jarShakeAudio = new Audio('shaking-coins-in-a-jar-2-38980.mp3');
+          jarShakeAudio.volume = 0.4;
+        }
+        jarShakeAudio.currentTime = 0;
+        jarShakeAudio.play().catch(() => {});
+      } catch { }
     });
   }
   
@@ -501,6 +516,17 @@
   modalBackdrop?.addEventListener('click', () => {
     modal.hidden = true;
   });
+
+  // Lid lift animation
+  function liftLid() {
+    if (!jarNeck) return;
+    if (globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    
+    jarNeck.classList.add('lifting');
+    setTimeout(() => {
+      jarNeck.classList.remove('lifting');
+    }, 600); // Match animation duration
+  }
 
   // Coin sound using MP3 file
   let coinAudio;
