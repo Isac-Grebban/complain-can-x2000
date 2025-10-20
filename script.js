@@ -11,6 +11,9 @@
   const loginModal = document.getElementById('loginModal');
   const emailInput = document.getElementById('emailInput');
   const loginBtn = document.getElementById('loginBtn');
+  const cooldownLoader = document.getElementById('cooldownLoader');
+  const cooldownSeconds = document.getElementById('cooldownSeconds');
+  const jar = document.querySelector('.jar');
   const API_BASE = ''; // Same origin (server serves static files)
   const MEMBERS = ['Isac','Hannah','Andreas','Karl','Daniel','Doug','Marina'];
   const VALUE_PER_COIN = 5; // SEK per coin
@@ -19,6 +22,8 @@
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
   let serverAvailable = false;
   let allowedEmails = [];
+  let lastClickTime = 0;
+  const RATE_LIMIT_MS = 30000; // 30 seconds
 
   // Load allowed emails
   async function loadAllowedEmails() {
@@ -27,10 +32,9 @@
       if (res.ok) {
         const data = await res.json();
         allowedEmails = data.allowedEmails || [];
-        console.log('Loaded allowed emails:', allowedEmails.length);
       }
-    } catch(err) {
-      console.error('Could not load allowed emails:', err);
+    } catch {
+      // Silently fail
     }
   }
 
@@ -118,6 +122,50 @@
     });
   }
 
+  function disableButtons() {
+    // Disable all member buttons
+    for (const btn of memberButtons) {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+    }
+    
+    // Show loader with countdown
+    cooldownLoader.hidden = false;
+    let remainingSeconds = 30;
+    cooldownSeconds.textContent = remainingSeconds;
+    
+    // Restart the progress bar animation
+    const progressBar = cooldownLoader.querySelector('.loader-progress');
+    progressBar.style.animation = 'none';
+    setTimeout(() => {
+      progressBar.style.animation = 'progressCountdown 30s linear forwards';
+    }, 10);
+    
+    // Update countdown text every second
+    const countdown = setInterval(() => {
+      remainingSeconds--;
+      cooldownSeconds.textContent = remainingSeconds;
+      
+      if (remainingSeconds <= 0) {
+        clearInterval(countdown);
+        enableButtons();
+      }
+    }, 1000);
+  }
+
+  function enableButtons() {
+    // Re-enable all member buttons
+    for (const btn of memberButtons) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+    }
+    
+    // Hide loader
+    cooldownLoader.hidden = true;
+  }
+
   async function load() {
     try {
       const res = await fetch(API_BASE + '/api/coins');
@@ -126,12 +174,10 @@
         count = data.total;
         memberCounts = data.members;
         serverAvailable = true;
-        console.log('Loaded from server:', data);
       } else { 
         throw new Error(`Server responded ${res.status}`); 
       }
-    } catch(error_) {
-      console.error('Server unavailable; app requires backend to run:', error_.message);
+    } catch {
       alert('Backend server not running! Start with: node server.js');
       // Reset to zero state when server unavailable
       count = 0;
@@ -195,10 +241,48 @@
   }
 
   async function addCoin(member) {
+    // Check if user is logged in with authorized email
+    const userEmail = sessionStorage.getItem('userEmail');
+    const userName = sessionStorage.getItem('userName');
+    
+    if (!userEmail || !userName) {
+      alert('Please log in to vote');
+      loginModal.style.display = 'flex';
+      emailInput.focus();
+      return;
+    }
+    
+    // Verify email is still in allowed list
+    if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail.toLowerCase())) {
+      alert('Your email is not authorized to vote. Please log in with an authorized email.');
+      sessionStorage.removeItem('userName');
+      sessionStorage.removeItem('userEmail');
+      loginModal.style.display = 'flex';
+      emailInput.focus();
+      return;
+    }
+    
+    // Client-side rate limiting
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime;
+    
+    if (timeSinceLastClick < RATE_LIMIT_MS) {
+      const remainingSeconds = Math.ceil((RATE_LIMIT_MS - timeSinceLastClick) / 1000);
+      alert(`Please wait ${remainingSeconds} seconds before adding another coin`);
+      return;
+    }
+    
     if (!serverAvailable) {
       alert('Server not available. Cannot save coin.');
       return;
     }
+    
+    // Update last click time
+    lastClickTime = now;
+    
+    // Disable all buttons
+    disableButtons();
+    
     // Optimistically update UI
     count++;
     memberCounts[member] = (memberCounts[member] || 0) + 1;
@@ -213,7 +297,7 @@
       const res = await fetch(API_BASE + '/api/coins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ member })
+        body: JSON.stringify({ member, email: userEmail })
       });
       if (res.ok) {
         const data = await res.json();
@@ -221,26 +305,53 @@
         memberCounts = data.members;
         updateDisplay();
         renderMemberStats();
-        console.log('Saved to server:', data);
+      } else if (res.status === 401 || res.status === 403) {
+        // Unauthorized - email not allowed
+        const errorData = await res.json();
+        alert(errorData.message || 'Your email is not authorized to vote. Please log in with an authorized email.');
+        // Rollback optimistic update, clear session, show login
+        count--;
+        memberCounts[member] = (memberCounts[member] || 1) - 1;
+        updateDisplay();
+        renderMemberStats();
+        lastClickTime = 0;
+        enableButtons();
+        sessionStorage.removeItem('userName');
+        sessionStorage.removeItem('userEmail');
+        loginModal.style.display = 'flex';
+        emailInput.focus();
+      } else if (res.status === 429) {
+        // Rate limit exceeded on server (shouldn't happen with client-side limiting, but just in case)
+        const errorData = await res.json();
+        alert(errorData.message || 'Please wait before voting again');
+        // Rollback optimistic update and reset timer
+        count--;
+        memberCounts[member] = (memberCounts[member] || 1) - 1;
+        updateDisplay();
+        renderMemberStats();
+        lastClickTime = 0; // Reset so user can try again
+        enableButtons();
       } else {
-        console.error('Server rejected coin:', res.status);
         alert('Failed to save coin to server!');
-        // Rollback optimistic update
+        // Rollback optimistic update and reset
         count--;
         memberCounts[member] = (memberCounts[member] || 1) - 1;
         updateDisplay();
         renderMemberStats();
         serverAvailable = false;
+        lastClickTime = 0;
+        enableButtons();
       }
-    } catch(error_) { 
-      console.error('POST failed:', error_.message); 
+    } catch {
       alert('Network error saving coin!');
-      // Rollback
+      // Rollback and reset
       count--;
       memberCounts[member] = (memberCounts[member] || 1) - 1;
       updateDisplay();
       renderMemberStats();
-      serverAvailable = false; 
+      serverAvailable = false;
+      lastClickTime = 0;
+      enableButtons();
     }
   }
 
@@ -332,6 +443,16 @@
   }
   resetBtn.addEventListener('click', reset);
   
+  // Jar swing animation on click
+  if (jar) {
+    jar.addEventListener('click', () => {
+      jar.classList.add('swinging');
+      setTimeout(() => {
+        jar.classList.remove('swinging');
+      }, 800); // Match animation duration
+    });
+  }
+  
   // Close modal when clicking the button or backdrop
   const modal = document.getElementById('cheatModal');
   const closeModalBtn = document.getElementById('closeModal');
@@ -357,8 +478,8 @@
       }
       // Reset and play (allows rapid clicks)
       coinAudio.currentTime = 0;
-      coinAudio.play().catch(error_ => console.warn('Audio play failed:', error_.message));
-    } catch(error_) { console.warn('Coin sound error:', error_.message); }
+      coinAudio.play().catch(() => {});
+    } catch { }
   }
 
   // Keyboard accessibility: space/enter when focused on button is native; no extra needed.

@@ -31,6 +31,7 @@
           <div class="jar-gloss" aria-hidden="true"></div>
           <div class="jar-neck" aria-hidden="true"></div>
         </figure>
+        <h3 class="member-heading">Who complained?</h3>
         <fieldset class="member-buttons below-jar" aria-label="Add complaint for member">
           <legend class="sr-only">Select member to add complaint</legend>
           <button data-member="Isac" class="member-btn" type="button">Isac</button>
@@ -41,6 +42,12 @@
           <button data-member="Doug" class="member-btn" type="button">Doug</button>
           <button data-member="Marina" class="member-btn" type="button">Marina</button>
         </fieldset>
+        <div id="cooldownLoader" class="cooldown-loader" hidden>
+          <div class="loader-bar">
+            <div class="loader-progress"></div>
+          </div>
+          <p class="loader-text">Next vote available in <span id="cooldownSeconds">30</span>s</p>
+        </div>
         <button id="resetBtn" class="reset" type="button" aria-label="Reset coin count" hidden>Reset</button>
       </section>
   </div>
