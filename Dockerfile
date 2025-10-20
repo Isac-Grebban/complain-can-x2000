@@ -11,6 +11,8 @@ COPY server.js ./
 COPY index.html ./
 COPY styles.css ./
 COPY script.js ./
+COPY allowed-emails.json ./
+COPY coin-drop-39914.mp3 ./
 COPY data ./data
 
 # Create non-root user for security

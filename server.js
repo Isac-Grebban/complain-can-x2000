@@ -16,8 +16,14 @@ let allowedEmails = [];
 try {
   const emailData = JSON.parse(fs.readFileSync(ALLOWED_EMAILS_FILE, 'utf8'));
   allowedEmails = emailData.allowedEmails || [];
-} catch {
-  // Silently fail
+  if (allowedEmails.length > 0) {
+    console.log(`✓ Loaded ${allowedEmails.length} allowed emails`);
+  } else {
+    console.error('⚠ Warning: No allowed emails found in allowed-emails.json');
+  }
+} catch (error) {
+  console.error('✗ Failed to load allowed-emails.json:', error.message);
+  console.error('  Email validation will reject all votes!');
 }
 
 // Rate limiting: track last vote time per IP

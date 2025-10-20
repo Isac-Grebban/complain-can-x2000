@@ -11,6 +11,7 @@
   const loginModal = document.getElementById('loginModal');
   const emailInput = document.getElementById('emailInput');
   const loginBtn = document.getElementById('loginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
   const cooldownLoader = document.getElementById('cooldownLoader');
   const cooldownSeconds = document.getElementById('cooldownSeconds');
   const jar = document.querySelector('.jar');
@@ -61,10 +62,12 @@
       // Already logged in
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
+      logoutBtn.hidden = false;
     } else {
       // Show login modal
       loginModal.style.display = 'flex';
       emailInput.focus();
+      logoutBtn.hidden = true;
     }
   }
 
@@ -88,7 +91,23 @@
       sessionStorage.setItem('userEmail', email);
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
+      logoutBtn.hidden = false;
     }
+  }
+
+  function handleLogout() {
+    // Clear session storage
+    sessionStorage.removeItem('userName');
+    sessionStorage.removeItem('userEmail');
+    
+    // Reset UI
+    updateUserDisplay('Guest');
+    logoutBtn.hidden = true;
+    
+    // Show login modal
+    emailInput.value = '';
+    loginModal.style.display = 'flex';
+    emailInput.focus();
   }
 
   // Login button click
@@ -103,6 +122,11 @@
         handleLogin();
       }
     });
+  }
+
+  // Logout button click
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
   }
 
   function updateUserDisplay(name) {
@@ -332,7 +356,19 @@
         lastClickTime = 0; // Reset so user can try again
         enableButtons();
       } else {
-        alert('Failed to save coin to server!');
+        // Try to get error message from response
+        let errorMessage = 'Failed to save coin to server!';
+        try {
+          const errorData = await res.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // Could not parse error response
+        }
+        alert(errorMessage);
         // Rollback optimistic update and reset
         count--;
         memberCounts[member] = (memberCounts[member] || 1) - 1;

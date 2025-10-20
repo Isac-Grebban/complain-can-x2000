@@ -118,27 +118,6 @@
   color: #fca5a5;
   font-size: 0.95rem;
 }
-.logout-btn {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  appearance: none;
-  padding: 0.6rem 1.2rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-stack);
-}
-.logout-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--accent);
-  background: rgba(37, 99, 235, 0.1);
-}
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -158,10 +137,16 @@ h1 { margin: 0 0 .5rem; font-size: clamp(2rem,4.5vw,3rem); font-weight: 600; let
 .app-header, .app-footer { text-align: center; padding: 2rem 1rem; border-bottom: 1px solid var(--border-subtle); }
 .app-header { padding-top: 3rem; position: relative; }
 
-.user-info {
+.user-section {
   position: absolute;
   top: 1rem;
   left: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.user-info {
   font-size: 0.9rem;
   color: var(--text-secondary);
   font-weight: 500;
@@ -178,6 +163,29 @@ h1 { margin: 0 0 .5rem; font-size: clamp(2rem,4.5vw,3rem); font-weight: 600; let
   border-color: var(--accent-blue);
   background: rgba(100, 180, 255, 0.1);
 }
+
+.logout-btn {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.logout-btn:active {
+  transform: scale(0.95);
+}
+
 .app-footer { font-size: .85rem; color: var(--text-secondary); border-bottom: none; border-top: 1px solid var(--border-subtle); margin-top: auto; }
 
 .app-main { flex: 1; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 2rem 1.5rem; gap: 2rem; }
