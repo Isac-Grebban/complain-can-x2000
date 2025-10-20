@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+README.md
+data/coins.log
+# Keep coins.json in volume; initial copy fine

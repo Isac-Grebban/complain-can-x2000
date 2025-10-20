@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Complaint Can</title>
+  <meta name="description" content="Add a coin to the team's complaint can whenever someone complains." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Login screen removed - direct access -->
+  
+  <!-- Main app -->
+  <header class="app-header">
+    <div class="user-info" id="userInfo">👤 Guest</div>
+    <h1>Complaint Collector Can</h1>
+    <p class="tagline">Every complaint funds the next team treat!</p>
+  </header>
+  <main class="app-main">
+    <div class="layout" aria-label="Summary and jar row">
+      <section class="summary" aria-label="Summary statistics">
+        <h2 class="summary-title">Summary</h2>
+        <output class="counter" id="coinCount" aria-live="polite" aria-atomic="true">
+          <span id="countValue">0</span> complaint<span id="pluralSuffix" aria-hidden="true">s</span> collected
+        </output>
+        <div id="memberStats" class="member-stats" aria-live="polite" aria-label="Member complaint statistics"></div>
+      </section>
+      <section class="scene" aria-label="Donation scene">
+        <figure class="jar" aria-label="Complaint can">
+          <div class="jar-inner" id="coinContainer" aria-live="polite" aria-label="Coins inside the can"></div>
+          <div class="jar-gloss" aria-hidden="true"></div>
+          <div class="jar-neck" aria-hidden="true"></div>
+        </figure>
+        <fieldset class="member-buttons below-jar" aria-label="Add complaint for member">
+          <legend class="sr-only">Select member to add complaint</legend>
+          <button data-member="Isac" class="member-btn" type="button">Isac</button>
+          <button data-member="Hannah" class="member-btn" type="button">Hannah</button>
+          <button data-member="Andreas" class="member-btn" type="button">Andreas</button>
+          <button data-member="Karl" class="member-btn" type="button">Karl</button>
+          <button data-member="Daniel" class="member-btn" type="button">Daniel</button>
+          <button data-member="Doug" class="member-btn" type="button">Doug</button>
+          <button data-member="Marina" class="member-btn" type="button">Marina</button>
+        </fieldset>
+        <button id="resetBtn" class="reset" type="button" aria-label="Reset coin count" hidden>Reset</button>
+      </section>
+  </div>
+  </main>
+  <footer class="app-footer">
+    <p>Complain more to get more to the beer fund!</p>
+  </footer>
+  
+  <!-- Login modal -->
+  <div id="loginModal" class="modal" style="display: flex;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2 class="modal-title">Welcome to Grebcan</h2>
+      <p class="modal-message">Enter your email to continue:</p>
+      <input type="email" id="emailInput" placeholder="your.name@grebban.com" style="width: 100%; padding: 0.75rem; margin: 1rem 0; border: 1px solid var(--border-subtle); border-radius: 0.5rem; background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
+      <button id="loginBtn" class="modal-close" type="button">Continue</button>
+    </div>
+  </div>
+  
+  <!-- Cheeky popup modal -->
+  <div id="cheatModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-emoji">🚫</div>
+      <h2 class="modal-title">You can't cheat!</h2>
+      <p class="modal-message">Nice try, but complaints are forever! 😄</p>
+      <button id="closeModal" class="modal-close" type="button">Got it!</button>
+    </div>
+  </div>
+  
+  <script src="script.js" defer></script>
+</body>
+</html>

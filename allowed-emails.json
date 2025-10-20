@@ -1,0 +1,19 @@
+{
+  "comment": "Allowed email addresses for Grebban team members - NOW USING SECURE SHA256 HASHES",
+  "version": "2.0.0",
+  "hashingNote": "Emails are hashed with SHA256 for privacy. Plain emails are no longer stored.",
+  "allowedEmailHashes": [
+    "23a1085aca88e487383370c173f4fa85979a707b156032cb8df64e4ae99562d6",
+    "0e7e1d5a529860734dec05897e7f965c0a5e37601dddbbad569e4dc2d0851b48",
+    "c43761bace327e7ded2f5c7676d494f374c9d1aea09293c34b3e61c21cbaf826",
+    "8c4b80b1af20a66b1dcf2a259eca4b29eaedf7d16b6e3b369f389615bfa61a24",
+    "b6cf4192ff9c62828ee512523683bceb59f9eac4d7c9b02262f4bcc2fa31346c",
+    "d929c8f87444369c9ae35b05a3edf4544fa246b101fb7e9d863b108a6e281ed7",
+    "4efdb7a219c2bad953734b9531c457fd7b5cc811ae77cb06869f5d6103848125"
+  ],
+  "_migration_info": {
+    "description": "Generated email hashes for secure authentication",
+    "original_emails_count": 7,
+    "migration_date": "2025-10-21"
+  }
+}
