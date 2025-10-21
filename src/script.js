@@ -63,13 +63,28 @@
   // Load allowed email hashes (now using SHA256 for privacy)
   async function loadAllowedEmails() {
     console.log('📥 Loading allowed emails...');
+    console.log('🌐 Current URL:', window.location.href);
+    console.log('📂 Fetching from:', window.location.origin + '/allowed-emails.json');
+    
     try {
       const res = await fetch('/allowed-emails.json');
       console.log('📡 Fetch response status:', res.status);
+      console.log('📡 Fetch response headers:', [...res.headers.entries()]);
       
       if (res.ok) {
-        const data = await res.json();
-        console.log('📄 Loaded email config:', data);
+        const text = await res.text();
+        console.log('📄 Raw response text:', text);
+        console.log('📄 Response length:', text.length);
+        
+        if (!text || text.trim() === '') {
+          console.error('❌ Empty response from allowed-emails.json');
+          allowedEmails = [];
+          return;
+        }
+        
+        const data = JSON.parse(text);
+        console.log('📄 Parsed email config:', data);
+        console.log('📄 Config keys:', Object.keys(data));
         
         // Support both legacy format (plain emails) and new format (hashes)
         if (data.allowedEmailHashes && data.allowedEmailHashes.length > 0) {
