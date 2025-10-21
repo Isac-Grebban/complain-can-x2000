@@ -63,44 +63,46 @@
 
 ---
 
-## ⚙️ Step 3: Configure Your App
+## ⚙️ Step 3: Configure Repository Secrets
 
-**Edit file**: `src/config.js`
+**Instead of putting secrets in code, use GitHub repository secrets:**
 
-Replace these two lines:
-```javascript
-GITHUB_TOKEN: 'YOUR_GITHUB_TOKEN',  // ← Paste your token here
-GIST_ID: 'YOUR_GIST_ID',           // ← Paste your gist ID here
-```
+1. **Go to your repository**: https://github.com/Isac-Grebban/complain-can-x2000
+2. **Settings** → **Secrets and variables** → **Actions**
+3. **Add two repository secrets**:
+   - **Name**: `GITHUB_GIST_TOKEN`, **Value**: Your GitHub token from Step 1
+   - **Name**: `GIST_ID`, **Value**: Your gist ID from Step 2
 
-**Example**:
-```javascript
-GITHUB_TOKEN: 'ghp_1234567890abcdef...',
-GIST_ID: 'abc123def456ghi789jkl012',
-```
+**Why this is better:**
+- ✅ **Secrets never appear in your code**
+- ✅ **GitHub Actions automatically injects them during deployment**
+- ✅ **More secure than committing tokens**
 
 ---
 
-## 🌐 Step 4: Enable GitHub Pages
+## 🌐 Step 4: Enable GitHub Pages with GitHub Actions
 
-**Option A: Repository Settings** (Recommended)
-1. Go to your repo: https://github.com/andreas-heige-grebban/complain-can
-2. **Settings** tab → **Pages** (left sidebar)
-3. **Source**: "Deploy from a branch"
-4. **Branch**: `main`, **Folder**: `/ (root)`
-5. **Save** 💾
+**Use GitHub Actions for automatic deployment** (handles secrets securely):
 
-**Option B: Auto-deploy via GitHub Actions**
-- Just push your changes - the workflow is already configured!
+1. **Go to your repository**: https://github.com/Isac-Grebban/complain-can-x2000
+2. **Settings** → **Pages** (left sidebar)
+3. **Source**: Select "GitHub Actions"
+4. **Done!** The workflow will automatically deploy when you push changes
+
+**Why GitHub Actions?**
+- ✅ **Automatically injects your secrets** from Step 3
+- ✅ **Builds the app with your configuration**
+- ✅ **Deploys to GitHub Pages securely**
 
 ---
 
 ## 🧪 Step 5: Test Your Deployment
 
-1. **Commit and push** your config changes
-2. **Wait 2-5 minutes** for deployment
-3. **Visit**: https://andreas-heige-grebban.github.io/complain-can/
-4. **Test**:
+1. **Commit and push** your changes (no secrets in code!)
+2. **Go to Actions tab** to watch the deployment progress
+3. **Wait 2-5 minutes** for GitHub Actions to complete
+4. **Visit your site**: https://isac-grebban.github.io/complain-can-x2000/
+5. **Test**:
    - Add some coins
    - Refresh the page
    - Coins should persist! 🎉
@@ -111,10 +113,16 @@ GIST_ID: 'abc123def456ghi789jkl012',
 
 | Problem | Solution |
 |---------|----------|
-| "GitHub token not configured" | Check token is correctly pasted in `src/config.js` |
-| "Gist not found" | Verify gist ID and that gist is public |
-| "Access denied" | Ensure token has `gist` scope |
+| "GitHub token not configured" | Check repository secrets are set correctly |
+| "Gist not found" | Verify `GIST_ID` secret matches your gist ID |
+| "Access denied" | Ensure `GITHUB_GIST_TOKEN` has `gist` scope |
+| Deployment failed | Check **Actions** tab for build errors |
 | Data not persisting | Check browser console for error messages |
+
+### 🔍 **Check Deployment Status**
+1. **Go to Actions tab** in your repository
+2. **Click on latest workflow run** to see details
+3. **Check if secrets were properly injected**
 
 ---
 

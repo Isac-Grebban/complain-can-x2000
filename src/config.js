@@ -2,17 +2,10 @@
 // IMPORTANT: Follow SETUP.md for complete deployment instructions
 
 window.CONFIG = {
-  // STEP 1: Create a GitHub Personal Access Token
-  // Go to: https://github.com/settings/tokens/new
-  // Select scope: 'gist' (this is the only permission needed)
-  // Replace 'YOUR_GITHUB_TOKEN' with your actual token
-  GITHUB_TOKEN: 'YOUR_GITHUB_TOKEN',
-  
-  // STEP 2: Create a public gist for data storage
-  // Go to: https://gist.github.com/
-  // Create a public gist named 'coins.json' with content from data/coins.json
-  // Replace 'YOUR_GIST_ID' with the gist ID from the URL
-  GIST_ID: 'YOUR_GIST_ID',
+  // Configuration loaded from GitHub repository secrets via GitHub Actions
+  // Secrets are injected during deployment, never stored in git
+  GITHUB_TOKEN: window.GITHUB_CONFIG?.token || 'YOUR_GITHUB_TOKEN',
+  GIST_ID: window.GITHUB_CONFIG?.gistId || 'YOUR_GIST_ID',
   
   // STEP 3: Update your GitHub username if needed
   GITHUB_USERNAME: 'andreas-heige-grebban',

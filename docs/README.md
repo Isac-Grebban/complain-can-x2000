@@ -7,6 +7,7 @@ Welcome to the documentation for the Complain Can app!
 ### 🚀 Deployment & Setup
 - **[📋 QUICK-START.md](./QUICK-START.md)** - Visual step-by-step deployment guide (~10 minutes)
 - **[📖 SETUP.md](./SETUP.md)** - Detailed setup instructions with troubleshooting
+- **[🔒 SECURE-CONFIG.md](./SECURE-CONFIG.md)** - Secure token configuration (prevents git secrets)
 
 ### 💻 Development
 - **[💻 LOCAL-DEVELOPMENT.md](./LOCAL-DEVELOPMENT.md)** - Local development without GitHub setup
