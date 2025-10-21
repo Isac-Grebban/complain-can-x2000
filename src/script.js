@@ -25,8 +25,31 @@
   let history = [];
   let storage = null;
   let allowedEmails = [];
-  let lastClickTime = 0;
   const RATE_LIMIT_MS = 30000; // 30 seconds
+  
+  // User-specific cooldown functions using localStorage
+  function getUserCooldownKey(userEmail) {
+    return `cooldown_${userEmail}`;
+  }
+  
+  function getUserLastClickTime(userEmail) {
+    if (!userEmail) return 0;
+    const stored = localStorage.getItem(getUserCooldownKey(userEmail));
+    return stored ? parseInt(stored, 10) : 0;
+  }
+  
+  function setUserLastClickTime(userEmail, timestamp) {
+    if (!userEmail) return;
+    localStorage.setItem(getUserCooldownKey(userEmail), timestamp.toString());
+  }
+  
+  function getRemainingCooldown(userEmail) {
+    if (!userEmail) return 0;
+    const lastClickTime = getUserLastClickTime(userEmail);
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime;
+    return Math.max(0, RATE_LIMIT_MS - timeSinceLastClick);
+  }
   
   // Initialize storage
   function initStorage() {
@@ -105,6 +128,9 @@
       loginModal.style.display = 'none';
       document.body.classList.add('app-loaded');
       logoutBtn.hidden = false;
+      
+      // Check for existing cooldown after login
+      checkExistingCooldown();
     }
   }
 
@@ -117,6 +143,9 @@
     updateUserDisplay('Guest');
     document.body.classList.remove('app-loaded');
     logoutBtn.hidden = true;
+    
+    // Enable buttons since cooldown is user-specific
+    enableButtons();
     
     // Show login modal
     emailInput.value = '';
@@ -161,6 +190,9 @@
   }
 
   function disableButtons() {
+    const userEmail = sessionStorage.getItem('userEmail');
+    if (!userEmail) return;
+    
     // Disable all member buttons
     for (const btn of memberButtons) {
       btn.disabled = true;
@@ -168,22 +200,33 @@
       btn.style.cursor = 'not-allowed';
     }
     
+    // Calculate actual remaining time from localStorage
+    const remainingCooldown = getRemainingCooldown(userEmail);
+    let remainingSeconds = Math.ceil(remainingCooldown / 1000);
+    
+    // If no cooldown remaining, don't show the loader
+    if (remainingSeconds <= 0) {
+      enableButtons();
+      return;
+    }
+    
     // Show loader with countdown
     cooldownLoader.hidden = false;
-    let remainingSeconds = 30;
     cooldownSeconds.textContent = remainingSeconds;
     
-    // Restart the progress bar animation
+    // Restart the progress bar animation with actual remaining time
     const progressBar = cooldownLoader.querySelector('.loader-progress');
+    const progressDuration = remainingSeconds;
     progressBar.style.animation = 'none';
     setTimeout(() => {
-      progressBar.style.animation = 'progressCountdown 30s linear forwards';
+      progressBar.style.animation = `progressCountdown ${progressDuration}s linear forwards`;
     }, 10);
     
     // Update countdown text every second
     const countdown = setInterval(() => {
-      remainingSeconds--;
-      cooldownSeconds.textContent = remainingSeconds;
+      const currentRemainingCooldown = getRemainingCooldown(userEmail);
+      remainingSeconds = Math.ceil(currentRemainingCooldown / 1000);
+      cooldownSeconds.textContent = Math.max(0, remainingSeconds);
       
       if (remainingSeconds <= 0) {
         clearInterval(countdown);
@@ -319,12 +362,12 @@
       return;
     }
     
-    // Client-side rate limiting
+    // User-specific rate limiting using localStorage
     const now = Date.now();
-    const timeSinceLastClick = now - lastClickTime;
+    const remainingCooldown = getRemainingCooldown(userEmail);
     
-    if (timeSinceLastClick < RATE_LIMIT_MS) {
-      const remainingSeconds = Math.ceil((RATE_LIMIT_MS - timeSinceLastClick) / 1000);
+    if (remainingCooldown > 0) {
+      const remainingSeconds = Math.ceil(remainingCooldown / 1000);
       alert(`Please wait ${remainingSeconds} seconds before adding another coin`);
       return;
     }
@@ -334,8 +377,8 @@
       return;
     }
     
-    // Update last click time
-    lastClickTime = now;
+    // Update user's last click time in localStorage
+    setUserLastClickTime(userEmail, now);
     
     // Disable all buttons
     disableButtons();
@@ -404,7 +447,11 @@
       memberCounts[member] = (memberCounts[member] || 1) - 1;
       updateDisplay();
       renderMemberStats();
-      lastClickTime = 0;
+      // Reset user's cooldown on error
+      const userEmail = sessionStorage.getItem('userEmail');
+      if (userEmail) {
+        localStorage.removeItem(getUserCooldownKey(userEmail));
+      }
       enableButtons();
     }
   }
@@ -760,6 +807,17 @@
 
   // Keyboard accessibility: space/enter when focused on button is native; no extra needed.
 
+  // Check for existing user cooldown on page load
+  function checkExistingCooldown() {
+    const userEmail = sessionStorage.getItem('userEmail');
+    if (!userEmail) return;
+    
+    const remainingCooldown = getRemainingCooldown(userEmail);
+    if (remainingCooldown > 0) {
+      disableButtons();
+    }
+  }
+
   // Initialize app
   async function init() {
     console.log('Initializing Complain Can app...');
@@ -770,6 +828,9 @@
     await loadAllowedEmails();
     initializeUserName();
     await load();
+    
+    // Check if user has an existing cooldown
+    checkExistingCooldown();
     
     console.log('App initialized successfully');
   }
