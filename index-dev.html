@@ -71,13 +71,9 @@
           <div class="loader-bar">
             <div class="loader-progress"></div>
           </div>
-          <div class="loader-text">
-            Wait <span id="cooldownSeconds">30</span>s before next vote
-          </div>
+          <p class="loader-text">Next vote available in <span id="cooldownSeconds">30</span>s</p>
         </div>
-        <button class="reset-btn" id="resetBtn" type="button" hidden>
-          Reset
-        </button>
+        <button id="resetBtn" class="reset" type="button" aria-label="Reset coin count" hidden>Reset</button>
       </section>
     </div>
   </main>
@@ -90,7 +86,7 @@
   <!-- Login screen -->
   <div id="loginModal" class="login-screen">
     <div class="login-container">
-      <div class="login-emoji">🔧</div>
+      <div class="login-emoji">🪙</div>
       <h1>Welcome to Grebcan!</h1>
       <p class="login-subtitle">Please enter your email to access the complaint can</p>
       <form class="login-form">
@@ -103,36 +99,32 @@
     </div>
   </div>
 
-  <!-- Cheat Prevention Modal -->
-  <div class="modal" id="cheatModal" hidden>
-    <div class="modal-backdrop">
-      <div class="modal-content">
-        <h2>Nice try! 😄</h2>
-        <p>But there's no cheating allowed in the complaint can!</p>
-        <p>Every coin represents a real complaint that deserves proper acknowledgment.</p>
-        <button id="closeModal" class="primary-btn">Got it!</button>
-        <div class="modal-footer">
-          <small>Keep the complaints coming honestly 🪙</small>
-        </div>
-      </div>
+  <!-- Cheeky popup modal -->
+  <div id="cheatModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-emoji">�</div>
+      <h2 class="modal-title">You can't cheat!</h2>
+      <p class="modal-message">Nice try, but complaints are forever! 😄</p>
+      <button id="closeModal" class="modal-close" type="button">Got it!</button>
     </div>
   </div>
   
-  <!-- History Modal -->
-  <div class="modal" id="historyModal" hidden>
-    <div class="modal-backdrop">
-      <div class="modal-content history-modal-content">
-        <div class="modal-emoji">📜</div>
-        <h2 class="modal-title">Complaint History</h2>
-        <div class="history-content" id="historyContent">
-          <p class="modal-message">Loading history...</p>
-        </div>
-        <button id="closeHistoryModal" class="modal-close" type="button">Close</button>
+  <!-- History modal -->
+  <div id="historyModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content history-modal-content">
+      <div class="modal-emoji">📜</div>
+      <h2 class="modal-title">Complaint History</h2>
+      <div class="history-content" id="historyContent">
+        <p class="modal-message">Loading history...</p>
       </div>
+      <button id="closeHistoryModal" class="modal-close" type="button">Close</button>
     </div>
   </div>
 
   <!-- Load configuration and dependencies first -->
+  <!-- Development mode uses local config instead of GitHub secrets -->
   <script src="src/config-dev.js"></script>
   <script src="src/gist-storage.js"></script>
   <script src="src/script.js" defer></script>
