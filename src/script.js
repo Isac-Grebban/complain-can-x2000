@@ -956,12 +956,12 @@
         <div class="legend-section">
           <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">Line Styles:</h4>
           <div class="legend-item">
-            <div class="legend-line-solid"></div>
-            <span>Reported (solid line, ●)</span>
+            <div class="legend-line-dashed"></div>
+            <span>Reported (dashed line, ●)</span>
           </div>
           <div class="legend-item">
-            <div class="legend-line-dashed"></div>
-            <span>Complaints (dashed line, ◆)</span>
+            <div class="legend-line-solid"></div>
+            <span>Complaints (solid line, ◆)</span>
           </div>
         </div>
       `;
@@ -1156,7 +1156,7 @@
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.setLineDash([]); // Solid line for given
+        ctx.setLineDash([8, 4]); // Dashed line for reported
         ctx.beginPath();
         
         data.given.forEach((value, index) => {
@@ -1203,7 +1203,7 @@
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]); // Dashed line for received
+        ctx.setLineDash([]); // Solid line for complaints
         ctx.beginPath();
         
         data.received.forEach((value, index) => {
