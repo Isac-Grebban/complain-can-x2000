@@ -27,25 +27,25 @@
   let allowedEmails = [];
   const RATE_LIMIT_MS = 30000; // 30 seconds
   
-  // User-specific cooldown functions using localStorage
-  function getUserCooldownKey(userEmail) {
-    return `cooldown_${userEmail}`;
+  // User-specific cooldown functions using localStorage (now with hashed identifiers)
+  function getUserCooldownKey(userIdentifier) {
+    return `cooldown_${userIdentifier}`;
   }
   
-  function getUserLastClickTime(userEmail) {
-    if (!userEmail) return 0;
-    const stored = localStorage.getItem(getUserCooldownKey(userEmail));
+  function getUserLastClickTime(userIdentifier) {
+    if (!userIdentifier) return 0;
+    const stored = localStorage.getItem(getUserCooldownKey(userIdentifier));
     return stored ? parseInt(stored, 10) : 0;
   }
   
-  function setUserLastClickTime(userEmail, timestamp) {
-    if (!userEmail) return;
-    localStorage.setItem(getUserCooldownKey(userEmail), timestamp.toString());
+  function setUserLastClickTime(userIdentifier, timestamp) {
+    if (!userIdentifier) return;
+    localStorage.setItem(getUserCooldownKey(userIdentifier), timestamp.toString());
   }
   
-  function getRemainingCooldown(userEmail) {
-    if (!userEmail) return 0;
-    const lastClickTime = getUserLastClickTime(userEmail);
+  function getRemainingCooldown(userIdentifier) {
+    if (!userIdentifier) return 0;
+    const lastClickTime = getUserLastClickTime(userIdentifier);
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTime;
     return Math.max(0, RATE_LIMIT_MS - timeSinceLastClick);
@@ -60,40 +60,53 @@
     return new window.GistStorage(window.CONFIG);
   }
 
-  // Load allowed emails
+  // Load allowed email hashes (now using SHA256 for privacy)
   async function loadAllowedEmails() {
+    console.log('📥 Loading allowed emails...');
     try {
       const res = await fetch('/allowed-emails.json');
+      console.log('📡 Fetch response status:', res.status);
+      
       if (res.ok) {
         const data = await res.json();
-        allowedEmails = data.allowedEmails || [];
+        console.log('📄 Loaded email config:', data);
+        
+        // Support both legacy format (plain emails) and new format (hashes)
+        if (data.allowedEmailHashes) {
+          // New secure format with hashes
+          allowedEmails = data.allowedEmailHashes || [];
+          console.log('✅ Loaded secure email hashes for validation, count:', allowedEmails.length);
+          console.log('🔑 First few hashes:', allowedEmails.slice(0, 2));
+        } else if (data.allowedEmails) {
+          // Legacy format - warn about security
+          console.warn('⚠️  Using legacy plain-text email format. Consider migrating to hashed emails for better privacy.');
+          allowedEmails = data.allowedEmails || [];
+          console.log('📧 Legacy emails count:', allowedEmails.length);
+        } else {
+          console.warn('⚠️  No allowedEmailHashes or allowedEmails found in config');
+          allowedEmails = [];
+        }
+      } else {
+        console.error('❌ Failed to fetch allowed-emails.json, status:', res.status);
+        allowedEmails = [];
       }
-    } catch {
-      // Silently fail
+    } catch (error) {
+      console.error('❌ Failed to load allowed emails:', error.message);
+      allowedEmails = [];
     }
+    
+    console.log('📋 Final allowedEmails array:', allowedEmails);
   }
 
-  // User name handling
-  function extractNameFromEmail(email) {
-    if (!email) return null;
-    
-    // Extract the part before @ symbol
-    const localPart = email.split('@')[0];
-    
-    // If it contains a dot, take the first part (e.g., "andreas.heige" -> "andreas")
-    // Otherwise use the whole local part (e.g., "karl" -> "karl")
-    const firstName = localPart.includes('.') ? localPart.split('.')[0] : localPart;
-    
-    // Capitalize first letter
-    return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-  }
+  // User name handling is now done by EmailHasher class
 
   function initializeUserName() {
     const userName = sessionStorage.getItem('userName');
-    const userEmail = sessionStorage.getItem('userEmail');
+    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    const userEmailHash = sessionStorage.getItem('userEmailHash');
     
-    if (userName && userEmail) {
-      // Already logged in
+    if (userName && userIdentifier && userEmailHash) {
+      // Already logged in with valid hash-based session
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
       document.body.classList.add('app-loaded');
@@ -106,38 +119,69 @@
     }
   }
 
-  function handleLogin() {
-    const email = emailInput.value.trim().toLowerCase();
+  async function handleLogin() {
+    const email = emailInput.value.trim();
+    
+    console.log('🔐 Login attempt for email:', email);
     
     if (!email) {
       alert('Please enter an email address');
       return;
     }
     
-    // Check if email is allowed
-    if (allowedEmails.length > 0 && !allowedEmails.includes(email)) {
-      alert('Sorry, this email is not authorized to access Grebcan.');
+    // Check if EmailHasher is available
+    if (!window.emailHasher) {
+      console.error('❌ EmailHasher not available');
+      alert('Email hashing system not loaded. Please refresh the page.');
       return;
     }
     
-    const userName = extractNameFromEmail(email);
-    if (userName) {
-      sessionStorage.setItem('userName', userName);
-      sessionStorage.setItem('userEmail', email);
-      updateUserDisplay(userName);
-      loginModal.style.display = 'none';
-      document.body.classList.add('app-loaded');
-      logoutBtn.hidden = false;
+    console.log('✅ EmailHasher available, proceeding with validation');
+    console.log('📋 Allowed hashes count:', allowedEmails.length);
+    
+    // Validate and hash email using the new secure system
+    try {
+      const validation = await window.emailHasher.validateAndHashEmail(email, allowedEmails);
       
-      // Check for existing cooldown after login
-      checkExistingCooldown();
+      console.log('🔍 Validation result:', validation);
+      
+      if (!validation.isValid) {
+        console.warn('❌ Validation failed:', validation.error);
+        alert(`Access denied: ${validation.error}`);
+        return;
+      }
+      
+      console.log('✅ Email validation successful');
+      
+      // Extract display name before we lose the plain email
+      const userName = window.emailHasher.extractDisplayNameFromEmail(email);
+      const userIdentifier = window.emailHasher.createUserIdentifier(validation.hash);
+      
+      if (userName) {
+        // Store user data using hashed identifiers for privacy
+        sessionStorage.setItem('userName', userName);
+        sessionStorage.setItem('userIdentifier', userIdentifier); // Hash-based ID
+        sessionStorage.setItem('userEmailHash', validation.hash); // Full hash for validation
+        
+        updateUserDisplay(userName);
+        loginModal.style.display = 'none';
+        document.body.classList.add('app-loaded');
+        logoutBtn.hidden = false;
+        
+        // Check for existing cooldown after login (now uses hash-based identifier)
+        checkExistingCooldown();
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed. Please try again.');
     }
   }
 
   function handleLogout() {
-    // Clear session storage
+    // Clear session storage (now includes hashed identifiers)
     sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('userEmail');
+    sessionStorage.removeItem('userIdentifier');
+    sessionStorage.removeItem('userEmailHash');
     
     // Reset UI
     updateUserDisplay('Guest');
@@ -190,8 +234,8 @@
   }
 
   function disableButtons() {
-    const userEmail = sessionStorage.getItem('userEmail');
-    if (!userEmail) return;
+    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    if (!userIdentifier) return;
     
     // Disable all member buttons
     for (const btn of memberButtons) {
@@ -200,8 +244,8 @@
       btn.style.cursor = 'not-allowed';
     }
     
-    // Calculate actual remaining time from localStorage
-    const remainingCooldown = getRemainingCooldown(userEmail);
+    // Calculate actual remaining time from localStorage (now using hashed identifier)
+    const remainingCooldown = getRemainingCooldown(userIdentifier);
     let remainingSeconds = Math.ceil(remainingCooldown / 1000);
     
     // If no cooldown remaining, don't show the loader
@@ -224,7 +268,7 @@
     
     // Update countdown text every second
     const countdown = setInterval(() => {
-      const currentRemainingCooldown = getRemainingCooldown(userEmail);
+      const currentRemainingCooldown = getRemainingCooldown(userIdentifier);
       remainingSeconds = Math.ceil(currentRemainingCooldown / 1000);
       cooldownSeconds.textContent = Math.max(0, remainingSeconds);
       
@@ -341,30 +385,32 @@
   }
 
   async function addCoin(member) {
-    // Check if user is logged in with authorized email
-    const userEmail = sessionStorage.getItem('userEmail');
+    // Check if user is logged in with authorized credentials
+    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    const userEmailHash = sessionStorage.getItem('userEmailHash');
     const userName = sessionStorage.getItem('userName');
     
-    if (!userEmail || !userName) {
+    if (!userIdentifier || !userEmailHash || !userName) {
       alert('Please log in to vote');
       loginModal.style.display = 'flex';
       emailInput.focus();
       return;
     }
     
-    // Verify email is still in allowed list
-    if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail.toLowerCase())) {
-      alert('Your email is not authorized to vote. Please log in with an authorized email.');
+    // Verify email hash is still in allowed list (for revoked access)
+    if (allowedEmails.length > 0 && !allowedEmails.includes(userEmailHash)) {
+      alert('Your access has been revoked. Please contact an administrator.');
       sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('userEmail');
+      sessionStorage.removeItem('userIdentifier');
+      sessionStorage.removeItem('userEmailHash');
       loginModal.style.display = 'flex';
       emailInput.focus();
       return;
     }
     
-    // User-specific rate limiting using localStorage
+    // User-specific rate limiting using localStorage (with hashed identifier)
     const now = Date.now();
-    const remainingCooldown = getRemainingCooldown(userEmail);
+    const remainingCooldown = getRemainingCooldown(userIdentifier);
     
     if (remainingCooldown > 0) {
       const remainingSeconds = Math.ceil(remainingCooldown / 1000);
@@ -377,8 +423,8 @@
       return;
     }
     
-    // Update user's last click time in localStorage
-    setUserLastClickTime(userEmail, now);
+    // Update user's last click time in localStorage (using hashed identifier)
+    setUserLastClickTime(userIdentifier, now);
     
     // Disable all buttons
     disableButtons();
@@ -448,9 +494,9 @@
       updateDisplay();
       renderMemberStats();
       // Reset user's cooldown on error
-      const userEmail = sessionStorage.getItem('userEmail');
-      if (userEmail) {
-        localStorage.removeItem(getUserCooldownKey(userEmail));
+      const userIdentifier = sessionStorage.getItem('userIdentifier');
+      if (userIdentifier) {
+        localStorage.removeItem(getUserCooldownKey(userIdentifier));
       }
       enableButtons();
     }
@@ -1262,10 +1308,10 @@
 
   // Check for existing user cooldown on page load
   function checkExistingCooldown() {
-    const userEmail = sessionStorage.getItem('userEmail');
-    if (!userEmail) return;
+    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    if (!userIdentifier) return;
     
-    const remainingCooldown = getRemainingCooldown(userEmail);
+    const remainingCooldown = getRemainingCooldown(userIdentifier);
     if (remainingCooldown > 0) {
       disableButtons();
     }
@@ -1274,6 +1320,22 @@
   // Initialize app
   async function init() {
     console.log('Initializing Complain Can app...');
+    
+    // Wait for EmailHasher to be available
+    let attempts = 0;
+    while (!window.emailHasher && attempts < 50) {
+      console.log('Waiting for EmailHasher to load...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (!window.emailHasher) {
+      console.error('❌ EmailHasher failed to load - login functionality will not work');
+      alert('Email hashing system failed to load. Please refresh the page.');
+      return;
+    }
+    
+    console.log('✅ EmailHasher loaded successfully');
     
     // Initialize storage first
     storage = initStorage();

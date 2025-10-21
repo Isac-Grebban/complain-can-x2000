@@ -152,6 +152,10 @@
   <!-- Load configuration and dependencies first -->
   <!-- Development mode uses local config instead of GitHub secrets -->
   <script src="src/config-dev.js"></script>
+
+  <!-- Email hashing utility for privacy and security - MUST LOAD BEFORE MAIN SCRIPT -->
+  <script src="src/email-hasher.js"></script>
+
   <script src="src/gist-storage.js"></script>
   <script src="src/script.js" defer></script>
 </body>
