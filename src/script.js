@@ -3,6 +3,7 @@
   // App elements
   const memberButtons = Array.from(document.querySelectorAll('.member-btn'));
   const resetBtn = document.getElementById('resetBtn');
+  const historyBtn = document.getElementById('historyBtn');
   const countValueEl = document.getElementById('countValue');
   const pluralSuffixEl = document.getElementById('pluralSuffix');
   const container = document.getElementById('coinContainer');
@@ -21,6 +22,7 @@
 
   let count = 0;
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
+  let history = [];
   let storage = null;
   let allowedEmails = [];
   let lastClickTime = 0;
@@ -221,6 +223,7 @@
       const data = await storage.loadData();
       count = data.total || 0;
       memberCounts = data.members || Object.fromEntries(MEMBERS.map(m=>[m,0]));
+      history = data.history || [];
       
       // Ensure all members exist in the data
       MEMBERS.forEach(member => {
@@ -229,12 +232,13 @@
         }
       });
       
-      console.log('Loaded coin data:', { count, memberCounts });
+      console.log('Loaded coin data:', { count, memberCounts, historyEntries: history.length });
     } catch (error) {
       console.error('Failed to load coin data:', error.message);
       // Use fallback data
       count = 0;
       memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
+      history = [];
     }
     
     updateDisplay();
@@ -336,9 +340,23 @@
     // Disable all buttons
     disableButtons();
     
+    // Get current user info
+    const currentUser = sessionStorage.getItem('userName') || 'Anonymous';
+    
+    // Create history entry
+    const historyEntry = {
+      id: Date.now() + Math.random(), // Unique ID
+      timestamp: new Date().toISOString(),
+      member: member,
+      addedBy: currentUser,
+      action: 'add_coin'
+    };
+    
     // Optimistically update UI
     count++;
     memberCounts[member] = (memberCounts[member] || 0) + 1;
+    history.unshift(historyEntry); // Add to beginning of array
+    
     updateDisplay();
     renderMemberStats();
     liftLid();
@@ -350,7 +368,8 @@
     try {
       const dataToSave = {
         total: count,
-        members: memberCounts
+        members: memberCounts,
+        history: history
       };
       
       const savedData = await storage.saveData(dataToSave);
@@ -358,6 +377,7 @@
       // Update with the actual saved data (in case of concurrent updates)
       count = savedData.total;
       memberCounts = savedData.members;
+      history = savedData.history || [];
       updateDisplay();
       renderMemberStats();
       
@@ -506,6 +526,11 @@
   }
   resetBtn.addEventListener('click', reset);
   
+  // History button event listener
+  if (historyBtn) {
+    historyBtn.addEventListener('click', openHistoryViewer);
+  }
+  
   // Jar swing animation on click with shake sound
   let jarShakeAudio;
   if (jar) {
@@ -567,6 +592,170 @@
       coinAudio.currentTime = 0;
       coinAudio.play().catch(() => {});
     } catch { }
+  }
+
+  // History viewer function
+  function openHistoryViewer() {
+    const historyWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    
+    const historyHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaint History - Team Complaints</title>
+  <style>
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #1a1a1a;
+      --bg-card: rgba(255,255,255,0.04);
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --accent: #2563eb;
+      --border-subtle: rgba(255,255,255,0.08);
+      --font-stack: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: var(--font-stack);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+    
+    h1 {
+      text-align: center;
+      color: var(--text-primary);
+      margin-bottom: 2rem;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+    
+    .summary {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: var(--bg-card);
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-subtle);
+    }
+    
+    .history-list {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.5rem;
+      transition: background 0.2s ease;
+    }
+    
+    .history-item:hover {
+      background: rgba(255,255,255,0.06);
+    }
+    
+    .history-main {
+      flex: 1;
+    }
+    
+    .history-action {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .history-details {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    
+    .history-time {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: right;
+      min-width: 120px;
+    }
+    
+    .no-history {
+      text-align: center;
+      color: var(--text-secondary);
+      font-style: italic;
+      padding: 2rem;
+    }
+    
+    .member-highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>📜 Complaint History</h1>
+  
+  <div class="summary">
+    <p><strong>Total Entries:</strong> ${history.length}</p>
+    <p><strong>Current Total:</strong> ${count} complaints (${count * VALUE_PER_COIN} SEK)</p>
+  </div>
+  
+  <div class="history-list">
+    ${history.length === 0 ? 
+      '<div class="no-history">No complaints recorded yet. Start complaining to build the history!</div>' :
+      history.map(entry => {
+        const date = new Date(entry.timestamp);
+        const timeAgo = getTimeAgo(date);
+        const formattedTime = date.toLocaleString();
+        
+        return `
+          <div class="history-item">
+            <div class="history-main">
+              <div class="history-action">
+                🪙 <span class="member-highlight">${entry.addedBy}</span> added a coin for <span class="member-highlight">${entry.member}</span>
+              </div>
+              <div class="history-details">
+                ${formattedTime}
+              </div>
+            </div>
+            <div class="history-time">
+              ${timeAgo}
+            </div>
+          </div>
+        `;
+      }).join('')
+    }
+  </div>
+  
+  <script>
+    function getTimeAgo(date) {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffMinutes < 1) return 'Just now';
+      if (diffMinutes < 60) return diffMinutes + 'm ago';
+      if (diffHours < 24) return diffHours + 'h ago';
+      if (diffDays < 30) return diffDays + 'd ago';
+      return date.toLocaleDateString();
+    }
+  </script>
+</body>
+</html>`;
+
+    historyWindow.document.write(historyHtml);
+    historyWindow.document.close();
   }
 
   // Keyboard accessibility: space/enter when focused on button is native; no extra needed.

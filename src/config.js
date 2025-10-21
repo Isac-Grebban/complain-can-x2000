@@ -26,6 +26,7 @@ window.CONFIG = {
       'Doug': 0,
       'Marina': 0
     },
+    history: [],
     updated: null
   }
 };
