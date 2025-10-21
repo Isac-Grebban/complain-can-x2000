@@ -88,6 +88,8 @@
   </div>
   
   <!-- Load configuration and dependencies first -->
+  <!-- GitHub config is injected during deployment, won't exist locally -->
+  <script src="github-config.js" onerror="console.log('GitHub config not found - using fallback (normal for local dev)')"></script>
   <script src="src/config.js"></script>
   <script src="src/gist-storage.js"></script>
   <script src="src/script.js" defer></script>
