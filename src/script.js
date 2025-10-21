@@ -573,9 +573,14 @@
   }
   resetBtn.addEventListener('click', reset);
   
-  // History button event listener
+  // History and Stats button event listeners
   if (historyBtn) {
     historyBtn.addEventListener('click', openHistoryViewer);
+  }
+  
+  const statsBtn = document.getElementById('statsBtn');
+  if (statsBtn) {
+    statsBtn.addEventListener('click', openStatsViewer);
   }
   
   // Jar swing animation on click with shake sound
@@ -625,6 +630,19 @@
   
   historyModalBackdrop?.addEventListener('click', () => {
     historyModal.hidden = true;
+  });
+
+  // Stats modal event listeners
+  const statsModal = document.getElementById('statsModal');
+  const closeStatsModalBtn = document.getElementById('closeStatsModal');
+  const statsModalBackdrop = statsModal?.querySelector('.modal-backdrop');
+  
+  closeStatsModalBtn?.addEventListener('click', () => {
+    statsModal.hidden = true;
+  });
+  
+  statsModalBackdrop?.addEventListener('click', () => {
+    statsModal.hidden = true;
   });
 
   // Lid lift animation
@@ -705,6 +723,539 @@
     if (diffHours < 24) return diffHours + 'h ago';
     if (diffDays < 30) return diffDays + 'd ago';
     return date.toLocaleDateString();
+  }
+
+  // Statistics functions
+  function generateStatsData() {
+    const statsData = {};
+    
+    // Initialize stats for all members
+    MEMBERS.forEach(member => {
+      statsData[member] = {
+        given: 0,     // Complaints they reported about others
+        received: memberCounts[member] || 0  // Complaints they received
+      };
+    });
+    
+    // Calculate given complaints from history
+    history.forEach(entry => {
+      if (entry.addedBy && statsData[entry.addedBy] !== undefined) {
+        statsData[entry.addedBy].given++;
+      }
+    });
+    
+    return statsData;
+  }
+  
+  function generateTimeBasedData() {
+    if (history.length === 0) return { timePoints: [], memberData: {} };
+    
+    // Sort history by timestamp
+    const sortedHistory = [...history].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    // Initialize member data
+    const memberData = {};
+    MEMBERS.forEach(member => {
+      memberData[member] = {
+        given: [],
+        received: []
+      };
+    });
+    
+    // Group data by weeks
+    const weeklyData = {};
+    
+    // Helper function to get the start of week (Monday) as key
+    function getWeekKey(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+      const monday = new Date(d.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+      return monday.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    }
+    
+    // Process each history entry and group by week
+    sortedHistory.forEach(entry => {
+      const weekKey = getWeekKey(entry.timestamp);
+      
+      if (!weeklyData[weekKey]) {
+        weeklyData[weekKey] = {
+          startDate: new Date(weekKey),
+          given: {},
+          received: {}
+        };
+        MEMBERS.forEach(member => {
+          weeklyData[weekKey].given[member] = 0;
+          weeklyData[weekKey].received[member] = 0;
+        });
+      }
+      
+      // Count complaints for this week
+      if (entry.addedBy && weeklyData[weekKey].given[entry.addedBy] !== undefined) {
+        weeklyData[weekKey].given[entry.addedBy]++;
+      }
+      if (entry.member && weeklyData[weekKey].received[entry.member] !== undefined) {
+        weeklyData[weekKey].received[entry.member]++;
+      }
+    });
+    
+    // Sort weeks chronologically
+    const sortedWeeks = Object.keys(weeklyData).sort();
+    
+    // Add one week earlier than the first data point for better context
+    if (sortedWeeks.length > 0) {
+      const firstWeekDate = new Date(sortedWeeks[0]);
+      firstWeekDate.setDate(firstWeekDate.getDate() - 7); // Go back one week
+      const earlierWeekKey = firstWeekDate.toISOString().split('T')[0];
+      
+      // Only add if it's not already in the data
+      if (!weeklyData[earlierWeekKey]) {
+        weeklyData[earlierWeekKey] = {
+          startDate: firstWeekDate,
+          given: {},
+          received: {}
+        };
+        MEMBERS.forEach(member => {
+          weeklyData[earlierWeekKey].given[member] = 0;
+          weeklyData[earlierWeekKey].received[member] = 0;
+        });
+        
+        // Re-sort weeks to include the new earlier week
+        sortedWeeks.unshift(earlierWeekKey);
+      }
+    }
+    
+    // Calculate cumulative data for each week
+    const cumulativeGiven = {};
+    const cumulativeReceived = {};
+    MEMBERS.forEach(member => {
+      cumulativeGiven[member] = 0;
+      cumulativeReceived[member] = 0;
+    });
+    
+    const timePoints = [];
+    
+    sortedWeeks.forEach(weekKey => {
+      const weekData = weeklyData[weekKey];
+      
+      // Update cumulative counts
+      MEMBERS.forEach(member => {
+        cumulativeGiven[member] += weekData.given[member];
+        cumulativeReceived[member] += weekData.received[member];
+      });
+      
+      // Create time point for this week
+      const startDate = weekData.startDate;
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6);
+      
+      timePoints.push({
+        timestamp: startDate,
+        label: `Week of ${startDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+      });
+      
+      // Record current cumulative values for all members
+      MEMBERS.forEach(member => {
+        memberData[member].given.push(cumulativeGiven[member]);
+        memberData[member].received.push(cumulativeReceived[member]);
+      });
+    });
+    
+    return { timePoints, memberData };
+  }
+  
+  let currentChartType = 'bar'; // Track current chart type
+  
+  function openStatsViewer() {
+    const statsModal = document.getElementById('statsModal');
+    const statsContent = document.getElementById('statsContent');
+    const statsSummary = document.getElementById('statsSummary');
+    const statsLegend = document.getElementById('statsLegend');
+    
+    const statsData = generateStatsData();
+    
+    // Create summary
+    const totalGiven = Object.values(statsData).reduce((sum, data) => sum + data.given, 0);
+    const totalReceived = Object.values(statsData).reduce((sum, data) => sum + data.received, 0);
+    
+    statsSummary.innerHTML = `
+      <strong>${totalGiven}</strong> total complaints reported • 
+      <strong>${totalReceived}</strong> total complaints
+    `;
+    
+    // Create legend
+    updateLegend();
+    
+    // Setup toggle button event listeners
+    setupChartToggle();
+    
+    // Draw initial chart
+    drawChart();
+    
+    // Show modal
+    statsModal.hidden = false;
+  }
+  
+  function setupChartToggle() {
+    const barChartBtn = document.getElementById('barChartBtn');
+    const lineChartBtn = document.getElementById('lineChartBtn');
+    
+    // Remove existing listeners
+    barChartBtn.replaceWith(barChartBtn.cloneNode(true));
+    lineChartBtn.replaceWith(lineChartBtn.cloneNode(true));
+    
+    // Get the new elements
+    const newBarChartBtn = document.getElementById('barChartBtn');
+    const newLineChartBtn = document.getElementById('lineChartBtn');
+    
+    newBarChartBtn.addEventListener('click', () => {
+      currentChartType = 'bar';
+      newBarChartBtn.classList.add('active');
+      newLineChartBtn.classList.remove('active');
+      updateLegend();
+      drawChart();
+    });
+    
+    newLineChartBtn.addEventListener('click', () => {
+      currentChartType = 'line';
+      newLineChartBtn.classList.add('active');
+      newBarChartBtn.classList.remove('active');
+      updateLegend();
+      drawChart();
+    });
+  }
+  
+  function updateLegend() {
+    const statsLegend = document.getElementById('statsLegend');
+    
+    if (currentChartType === 'bar') {
+      statsLegend.innerHTML = `
+        <div class="legend-item">
+          <div class="legend-color" style="background: #2563eb;"></div>
+          <span>Complaints Reported</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #dc2626;"></div>
+          <span>Complaints</span>
+        </div>
+      `;
+    } else {
+      // For line chart, show member-specific legend
+      const colors = [
+        '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', 
+        '#db2777', '#0891b2', '#65a30d'
+      ];
+      
+      let legendHtml = '<div class="line-legend-container">';
+      
+      // Add explanation header
+      legendHtml += `
+        <div class="legend-section">
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">Line Styles:</h4>
+          <div class="legend-item">
+            <div class="legend-line-solid"></div>
+            <span>Reported (solid line, ●)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-line-dashed"></div>
+            <span>Complaints (dashed line, ◆)</span>
+          </div>
+        </div>
+      `;
+      
+      // Add member colors
+      legendHtml += `
+        <div class="legend-section">
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">Members:</h4>
+          <div class="legend-members">
+      `;
+      
+      MEMBERS.forEach((member, index) => {
+        const color = colors[index % colors.length];
+        legendHtml += `
+          <div class="legend-item">
+            <div class="legend-color" style="background: ${color};"></div>
+            <span>${member}</span>
+          </div>
+        `;
+      });
+      
+      legendHtml += '</div></div></div>';
+      statsLegend.innerHTML = legendHtml;
+    }
+  }
+  
+  function drawChart() {
+    if (currentChartType === 'bar') {
+      const statsData = generateStatsData();
+      drawStatsChart(statsData);
+    } else {
+      const timeData = generateTimeBasedData();
+      drawLineChart(timeData);
+    }
+  }
+  
+  function drawStatsChart(statsData) {
+    const canvas = document.getElementById('statsChart');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const members = Object.keys(statsData);
+    const maxValue = Math.max(
+      ...Object.values(statsData).map(data => Math.max(data.given, data.received)),
+      1 // Ensure minimum of 1 to avoid division by zero
+    );
+    
+    // Chart dimensions
+    const chartWidth = canvas.width - 100;
+    const chartHeight = canvas.height - 80;
+    const chartX = 60;
+    const chartY = 40;
+    const barWidth = chartWidth / (members.length * 2 + 1);
+    
+    // Set styles
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    
+    // Draw bars and labels
+    members.forEach((member, index) => {
+      const data = statsData[member];
+      const x = chartX + (index * 2 + 1) * barWidth;
+      
+      // Given bar (blue)
+      const givenHeight = (data.given / maxValue) * chartHeight;
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(x - barWidth * 0.4, chartY + chartHeight - givenHeight, barWidth * 0.35, givenHeight);
+      
+      // Received bar (red)
+      const receivedHeight = (data.received / maxValue) * chartHeight;
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(x + barWidth * 0.05, chartY + chartHeight - receivedHeight, barWidth * 0.35, receivedHeight);
+      
+      // Member name
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(member, x, chartY + chartHeight + 20);
+      
+      // Values on bars if they're large enough
+      if (givenHeight > 20) {
+        ctx.fillText(data.given.toString(), x - barWidth * 0.225, chartY + chartHeight - givenHeight + 15);
+      }
+      if (receivedHeight > 20) {
+        ctx.fillText(data.received.toString(), x + barWidth * 0.225, chartY + chartHeight - receivedHeight + 15);
+      }
+    });
+    
+    // Draw Y-axis labels
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 5; i++) {
+      const value = Math.round((maxValue / 5) * i);
+      const y = chartY + chartHeight - (chartHeight / 5) * i;
+      ctx.fillStyle = '#a0a0a0';
+      ctx.fillText(value.toString(), chartX - 10, y + 4);
+      
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(chartX, y);
+      ctx.lineTo(chartX + chartWidth, y);
+      ctx.stroke();
+    }
+    
+    // Draw axes
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(chartX, chartY);
+    ctx.lineTo(chartX, chartY + chartHeight);
+    ctx.lineTo(chartX + chartWidth, chartY + chartHeight);
+    ctx.stroke();
+  }
+  
+  function drawLineChart(timeData) {
+    const canvas = document.getElementById('statsChart');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const { timePoints, memberData } = timeData;
+    
+    if (timePoints.length === 0) {
+      // Draw "No data" message
+      ctx.fillStyle = '#a0a0a0';
+      ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No historical data available', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+    
+    // Chart dimensions
+    const chartWidth = canvas.width - 120;
+    const chartHeight = canvas.height - 100;
+    const chartX = 80;
+    const chartY = 40;
+    
+    // Find max value for scaling
+    let maxValue = 0;
+    Object.values(memberData).forEach(data => {
+      maxValue = Math.max(maxValue, ...data.given, ...data.received);
+    });
+    maxValue = Math.max(maxValue, 1); // Ensure minimum of 1
+    
+    // Colors for different members
+    const colors = [
+      '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', 
+      '#db2777', '#0891b2', '#65a30d'
+    ];
+    
+    // Draw grid lines and Y-axis labels
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#a0a0a0';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'right';
+    
+    for (let i = 0; i <= 5; i++) {
+      const value = Math.round((maxValue / 5) * i);
+      const y = chartY + chartHeight - (chartHeight / 5) * i;
+      ctx.fillText(value.toString(), chartX - 10, y + 4);
+      
+      ctx.beginPath();
+      ctx.moveTo(chartX, y);
+      ctx.lineTo(chartX + chartWidth, y);
+      ctx.stroke();
+    }
+    
+    // Draw X-axis time labels
+    ctx.textAlign = 'center';
+    const maxLabels = Math.min(8, timePoints.length); // Show more labels for weeks, but cap at 8
+    const labelInterval = Math.max(1, Math.floor(timePoints.length / maxLabels));
+    
+    timePoints.forEach((point, index) => {
+      if (index % labelInterval === 0 || index === timePoints.length - 1) {
+        const x = chartX + (index / Math.max(1, timePoints.length - 1)) * chartWidth;
+        // Use the label from the time point which is already formatted for weeks
+        const shortLabel = point.label.replace('Week of ', '');
+        ctx.fillStyle = '#a0a0a0';
+        ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(shortLabel, x, chartY + chartHeight + 20);
+      }
+    });
+    
+    // Draw lines for each member's given complaints
+    MEMBERS.forEach((member, memberIndex) => {
+      const data = memberData[member];
+      if (data && data.given.some(val => val > 0)) { // Only draw if member has given complaints
+        const color = colors[memberIndex % colors.length];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]); // Solid line for given
+        ctx.beginPath();
+        
+        data.given.forEach((value, index) => {
+          const x = chartX + (index / Math.max(1, timePoints.length - 1)) * chartWidth;
+          const y = chartY + chartHeight - (value / maxValue) * chartHeight;
+          
+          // Only draw lines if we have more than one point
+          if (timePoints.length > 1) {
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+        });
+        
+        // Only stroke if we have lines to draw
+        if (timePoints.length > 1) {
+          ctx.stroke();
+        }
+        
+        // Draw circle points for given complaints
+        ctx.fillStyle = color;
+        data.given.forEach((value, index) => {
+          const x = chartX + (index / Math.max(1, timePoints.length - 1)) * chartWidth;
+          const y = chartY + chartHeight - (value / maxValue) * chartHeight;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, 2 * Math.PI);
+          ctx.fill();
+          
+          // Add white border for better visibility
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        });
+      }
+    });
+    
+    // Draw lines for each member's received complaints (dashed)
+    MEMBERS.forEach((member, memberIndex) => {
+      const data = memberData[member];
+      if (data && data.received.some(val => val > 0)) { // Only draw if member has received complaints
+        const color = colors[memberIndex % colors.length];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]); // Dashed line for received
+        ctx.beginPath();
+        
+        data.received.forEach((value, index) => {
+          const x = chartX + (index / Math.max(1, timePoints.length - 1)) * chartWidth;
+          const y = chartY + chartHeight - (value / maxValue) * chartHeight;
+          
+          // Only draw lines if we have more than one point
+          if (timePoints.length > 1) {
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+        });
+        
+        // Only stroke if we have lines to draw
+        if (timePoints.length > 1) {
+          ctx.stroke();
+        }
+        
+        // Draw diamond points for received complaints
+        ctx.setLineDash([]); // Reset line dash for points
+        ctx.fillStyle = color;
+        data.received.forEach((value, index) => {
+          const x = chartX + (index / Math.max(1, timePoints.length - 1)) * chartWidth;
+          const y = chartY + chartHeight - (value / maxValue) * chartHeight;
+          
+          // Draw diamond shape
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillRect(-4, -4, 8, 8);
+          
+          // Add white border for better visibility
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(-4, -4, 8, 8);
+          ctx.restore();
+        });
+      }
+    });
+    
+    // Draw axes
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(chartX, chartY);
+    ctx.lineTo(chartX, chartY + chartHeight);
+    ctx.lineTo(chartX + chartWidth, chartY + chartHeight);
+    ctx.stroke();
   }
 
   // Keyboard accessibility: space/enter when focused on button is native; no extra needed.

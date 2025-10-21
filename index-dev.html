@@ -81,6 +81,7 @@
   <footer class="app-footer">
     <p>Complain more to get more to the beer fund!</p>
     <button id="historyBtn" class="history-btn" type="button">📜 View History</button>
+    <button id="statsBtn" class="history-btn" type="button">📊 View Stats</button>
   </footer>
 
   <!-- Login screen -->
@@ -120,6 +121,31 @@
         <p class="modal-message">Loading history...</p>
       </div>
       <button id="closeHistoryModal" class="modal-close" type="button">Close</button>
+    </div>
+  </div>
+  
+  <!-- Statistics modal -->
+  <div id="statsModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content stats-modal-content">
+      <div class="modal-emoji">📊</div>
+      <h2 class="modal-title">Complaint Statistics</h2>
+      <div class="stats-content" id="statsContent">
+        <div class="stats-summary" id="statsSummary">
+          <p class="modal-message">Loading statistics...</p>
+        </div>
+        <div class="chart-controls">
+          <div class="chart-toggle">
+            <button id="barChartBtn" class="chart-toggle-btn active" type="button">📊 Bar Chart</button>
+            <button id="lineChartBtn" class="chart-toggle-btn" type="button">📈 Line Graph</button>
+          </div>
+        </div>
+        <div class="stats-chart-container">
+          <canvas id="statsChart" width="500" height="300"></canvas>
+        </div>
+        <div class="stats-legend" id="statsLegend"></div>
+      </div>
+      <button id="closeStatsModal" class="modal-close" type="button">Close</button>
     </div>
   </div>
 
