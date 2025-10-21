@@ -71,6 +71,7 @@
       // Already logged in
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
+      document.body.classList.add('app-loaded');
       logoutBtn.hidden = false;
     } else {
       // Show login modal
@@ -100,6 +101,7 @@
       sessionStorage.setItem('userEmail', email);
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
+      document.body.classList.add('app-loaded');
       logoutBtn.hidden = false;
     }
   }
@@ -111,6 +113,7 @@
     
     // Reset UI
     updateUserDisplay('Guest');
+    document.body.classList.remove('app-loaded');
     logoutBtn.hidden = true;
     
     // Show login modal

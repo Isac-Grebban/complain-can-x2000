@@ -60,14 +60,19 @@
     <p>Complain more to get more to the beer fund!</p>
   </footer>
   
-  <!-- Login modal -->
-  <div id="loginModal" class="modal" style="display: flex;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h2 class="modal-title">Welcome to Grebcan</h2>
-      <p class="modal-message">Enter your email to continue:</p>
-      <input type="email" id="emailInput" placeholder="your.name@grebban.com" style="width: 100%; padding: 0.75rem; margin: 1rem 0; border: 1px solid var(--border-subtle); border-radius: 0.5rem; background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-      <button id="loginBtn" class="modal-close" type="button">Continue</button>
+  <!-- Login screen -->
+  <div id="loginModal" class="login-screen">
+    <div class="login-container">
+      <div class="login-emoji">🪙</div>
+      <h1>Welcome to Grebcan!</h1>
+      <p class="login-subtitle">Please enter your email to access the complaint can</p>
+      <form class="login-form">
+        <input type="email" id="emailInput" class="login-input" placeholder="your.email@grebban.com" autocomplete="email" required>
+        <button id="loginBtn" class="login-button" type="button">Login</button>
+      </form>
+      <div class="login-footer">
+        <small>Only authorized team members can access this app</small>
+      </div>
     </div>
   </div>
   
