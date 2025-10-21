@@ -14,7 +14,6 @@ Welcome to the documentation for the Complain Can app!
 
 ### 📁 Project Information
 - **[📄 ../README.md](../README.md)** - Main project overview and features
-- **[🧹 ../CLEANUP-SUMMARY.md](../CLEANUP-SUMMARY.md)** - Repository organization details
 
 ## 🎯 Quick Navigation
 

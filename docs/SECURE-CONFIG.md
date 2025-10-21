@@ -31,8 +31,8 @@ The proper way to deploy to GitHub Pages without exposing secrets in your code.
 ```
 
 ### Option B: Test with Real GitHub Integration
-1. **Copy template**: `cp src/config-local.template.js src/config-local.js`
-2. **Edit `src/config-local.js`** with your real tokens
+1. **Create config file**: `cp src/config-dev.js src/config-local.js`
+2. **Edit `src/config-local.js`** with your real GitHub tokens
 3. **Test production version**: http://localhost:8080/index.html
 
 ## 🛡️ **Security Benefits**
@@ -47,7 +47,7 @@ The proper way to deploy to GitHub Pages without exposing secrets in your code.
 ```
 src/
 ├── config.js              # Public config (no secrets)
-├── config-local.template.js # Template for local config
+├── config-dev.js          # Development config template
 └── config-local.js        # Your actual secrets (gitignored)
 ```
 

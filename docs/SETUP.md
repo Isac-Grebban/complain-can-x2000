@@ -77,36 +77,13 @@ Follow these detailed steps to deploy your Complain Can app to GitHub Pages:
 
 ## Troubleshooting
 
-### Common Issues:
+For comprehensive troubleshooting, see the [QUICK-START.md troubleshooting section](./QUICK-START.md#-troubleshooting) which includes solutions for common deployment issues.
 
-1. **"GitHub token not configured" error**
-   - Check that `GIST_TOKEN` repository secret is set correctly
-   - Ensure the token has `gist` scope
-   - Verify GitHub Actions workflow completed successfully
+### Local Testing
 
-2. **"Gist not found" error**
-   - Verify the `GIST_ID` repository secret matches your gist ID exactly
-   - Make sure the gist is public
-   - Check that the gist contains a file named `coins.json`
-
-3. **"Access denied" error**
-   - Verify your GitHub token is valid and not expired
-   - Ensure the token has `gist` scope
-   - Check that you own the gist or have access to it
-
-4. **Data not persisting**
-   - Check browser console for error messages
-   - Verify the gist structure matches the expected format
-   - Test the gist API directly: `https://api.github.com/gists/YOUR_GIST_ID`
-
-### Testing Locally
-
-You can test the app locally by:
-1. Serving the files with a local web server (not just opening index.html)
-2. Using Python: `python -m http.server 8000`
-3. Or using Node.js: `npx serve .`
-4. Open `http://localhost:8000` in your browser
-
-### Backup Your Token
-
-Store your GitHub token securely. If you lose it, you'll need to generate a new one and update your configuration.
+Test the app locally with:
+```bash
+./dev-server.sh
+# Open: http://localhost:8080/index-dev.html (development mode)
+# Or: http://localhost:8080/index.html (production mode)
+```
