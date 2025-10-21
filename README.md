@@ -26,9 +26,9 @@ This app has been refactored to work on GitHub Pages without a server! It uses G
 ### ⚡ Quick Deploy
 1. **[Create GitHub token](https://github.com/settings/tokens/new)** with `gist` scope
 2. **[Create public gist](https://gist.github.com/)** with coin data
-3. **Update `src/config.js`** with your token & gist ID
-4. **Enable GitHub Pages** in repository settings
-5. **Done!** 🎉
+3. **Add repository secrets** in GitHub Settings → Secrets
+4. **Enable GitHub Pages** with GitHub Actions
+5. **Done!** 🎉 (No code editing required!)
 
 👉 **[📋 Follow the complete Quick-Start Guide →](./docs/QUICK-START.md)**
 
@@ -71,6 +71,10 @@ The app supports full local development without any GitHub setup required!
 python3 -m http.server 8080
 # Then open: http://localhost:8080/index-dev.html
 ```
+
+**Important:** 
+- Use `index-dev.html` for local development (uses localStorage)
+- Use `index.html` only for production (requires GitHub Actions deployment)
 
 #### Development vs Production
 - **`index-dev.html`**: Immediate testing, localStorage persistence, no GitHub setup needed

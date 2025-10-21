@@ -9,11 +9,9 @@ The proper way to deploy to GitHub Pages without exposing secrets in your code.
 2. **Settings** → **Secrets and variables** → **Actions**
 3. **Click "New repository secret"** and add:
    
-   **Secret 1:**
-   - **Name**: `GITHUB_GIST_TOKEN`
-   - **Value**: Your GitHub personal access token (from GitHub settings)
-   
-   **Secret 2:**
+   **Secret 1**
+   - **Name**: `GIST_TOKEN`
+   - **Value**: Your Personal Access Token from GitHub   **Secret 2:**
    - **Name**: `GIST_ID` 
    - **Value**: Your gist ID (from the gist URL)
 

@@ -1,14 +1,14 @@
 // Configuration for GitHub Pages deployment
-// IMPORTANT: Follow SETUP.md for complete deployment instructions
+// NO EDITING REQUIRED - Secrets are loaded via GitHub Actions
 
 window.CONFIG = {
-  // Configuration loaded from GitHub repository secrets via GitHub Actions
-  // Secrets are injected during deployment, never stored in git
-  GITHUB_TOKEN: window.GITHUB_CONFIG?.token || 'YOUR_GITHUB_TOKEN',
-  GIST_ID: window.GITHUB_CONFIG?.gistId || 'YOUR_GIST_ID',
+  // GitHub secrets are automatically injected during deployment
+  // See docs/QUICK-START.md for setup instructions
+  GITHUB_TOKEN: window.GITHUB_CONFIG?.token || 'PLEASE_SET_REPOSITORY_SECRETS',
+  GIST_ID: window.GITHUB_CONFIG?.gistId || 'PLEASE_SET_REPOSITORY_SECRETS',
   
-  // STEP 3: Update your GitHub username if needed
-  GITHUB_USERNAME: 'andreas-heige-grebban',
+  // Project settings (no changes needed)
+  GITHUB_USERNAME: 'Isac-Grebban',
   
   // Technical settings (usually don't need to change these)
   GIST_FILENAME: 'coins.json',
@@ -30,5 +30,7 @@ window.CONFIG = {
   }
 };
 
-// Quick setup helper: Open browser console and run createInitialGist()
-// (requires setup-helper.js to be loaded)
+// SETUP INSTRUCTIONS:
+// 1. Add GitHub repository secrets (see docs/QUICK-START.md)
+// 2. Push your code - GitHub Actions will inject secrets automatically
+// 3. No manual editing of this file required!

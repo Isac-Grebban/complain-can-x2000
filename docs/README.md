@@ -29,7 +29,7 @@ Welcome to the documentation for the Complain Can app!
 
 1. **Check the troubleshooting** sections in each guide
 2. **Look at browser console** for error messages
-3. **Verify your configuration** in `src/config.js`
+3. **Check GitHub Actions deployment** completed successfully
 4. **Test locally first** using the development mode
 
 Happy coding! 🎉

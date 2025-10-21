@@ -28,6 +28,15 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
+      - name: Inject GitHub Secrets
+        run: |
+          cat > github-config.js << 'EOF'
+          window.GITHUB_CONFIG = {
+            token: '${{ secrets.GIST_TOKEN }}',
+            gistId: '${{ secrets.GIST_ID }}'
+          };
+          EOF
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

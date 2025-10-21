@@ -25,19 +25,26 @@ Follow these detailed steps to deploy your Complain Can app to GitHub Pages:
 3. Click "Create public gist"
 4. **Copy the Gist ID** from the URL (e.g., if URL is `https://gist.github.com/username/abc123def456`, the ID is `abc123def456`)
 
-## 3. Configure the Application
+## 3. Configure Repository Secrets
 
-1. Open `src/config.js` in your repository
-2. Replace `YOUR_GITHUB_TOKEN` with your Personal Access Token from step 1
-3. Replace `YOUR_GIST_ID` with your Gist ID from step 2
-4. Update `GITHUB_USERNAME` if needed
+**DO NOT edit any code files.** Instead, add secrets to your GitHub repository:
 
-Example:
-```javascript
-GITHUB_TOKEN: 'ghp_1234567890abcdef...', // Your actual token
-GIST_ID: 'abc123def456ghi789jkl012', // Your actual gist ID
-GITHUB_USERNAME: 'your-github-username', // Your GitHub username
-```
+1. Go to your repository on GitHub
+2. **Settings** → **Secrets and variables** → **Actions**
+3. Click **"New repository secret"** and add these two secrets:
+   
+   **Secret 1:**
+   - Name: `GIST_TOKEN`
+   - Value: Your Personal Access Token from step 1
+   
+   **Secret 2:**
+   - Name: `GIST_ID`
+   - Value: Your Gist ID from step 2
+
+**Why repository secrets?**
+- ✅ Secrets never appear in your code
+- ✅ More secure than hardcoding tokens
+- ✅ GitHub Actions automatically injects them during deployment
 
 ## 4. Deploy to GitHub Pages
 
@@ -73,11 +80,12 @@ GITHUB_USERNAME: 'your-github-username', // Your GitHub username
 ### Common Issues:
 
 1. **"GitHub token not configured" error**
-   - Check that your token is correctly set in `src/config.js`
+   - Check that `GIST_TOKEN` repository secret is set correctly
    - Ensure the token has `gist` scope
+   - Verify GitHub Actions workflow completed successfully
 
 2. **"Gist not found" error**
-   - Verify the Gist ID is correct in `src/config.js`
+   - Verify the `GIST_ID` repository secret matches your gist ID exactly
    - Make sure the gist is public
    - Check that the gist contains a file named `coins.json`
 

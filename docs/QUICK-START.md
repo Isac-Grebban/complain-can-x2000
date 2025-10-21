@@ -70,7 +70,7 @@
 1. **Go to your repository**: https://github.com/Isac-Grebban/complain-can-x2000
 2. **Settings** → **Secrets and variables** → **Actions**
 3. **Add two repository secrets**:
-   - **Name**: `GITHUB_GIST_TOKEN`, **Value**: Your GitHub token from Step 1
+   - **Name**: `GIST_TOKEN`, **Value**: Your GitHub token from Step 1
    - **Name**: `GIST_ID`, **Value**: Your gist ID from Step 2
 
 **Why this is better:**
@@ -115,7 +115,7 @@
 |---------|----------|
 | "GitHub token not configured" | Check repository secrets are set correctly |
 | "Gist not found" | Verify `GIST_ID` secret matches your gist ID |
-| "Access denied" | Ensure `GITHUB_GIST_TOKEN` has `gist` scope |
+| "Access denied" | Ensure `GIST_TOKEN` has `gist` scope |
 | Deployment failed | Check **Actions** tab for build errors |
 | Data not persisting | Check browser console for error messages |
 
