@@ -1,4 +1,127 @@
-# Complaint Coin Can
+# Complain Can 🪙
+
+A fun team application to collect "complaints" and turn them into team treats! Every complaint adds a coin to the can, building up funds for the next team beer or coffee run.
+
+## 📖 Table of Contents
+
+- [🚀 GitHub Pages Deployment](#-github-pages-deployment)
+- [✨ Features](#-features)
+- [🔧 Technical Details](#-technical-details)
+- [💻 Local Development](#-local-development)
+- [📁 Project Structure](#-project-structure)
+- [🏛️ Legacy Server Version](#️-legacy-server-version)
+
+## 🚀 GitHub Pages Deployment
+
+This app has been refactored to work on GitHub Pages without a server! It uses GitHub Gists as a backend for shared data storage.
+
+### 📚 Documentation
+
+| Guide | Purpose | Time |
+|-------|---------|------|
+| **[📋 QUICK-START.md](./docs/QUICK-START.md)** | **Step-by-step deployment guide** | **~10 min** |
+| [📖 SETUP.md](./docs/SETUP.md) | Detailed setup instructions | 15 min |
+| [💻 LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Local development guide | 5 min |
+
+### ⚡ Quick Deploy
+1. **[Create GitHub token](https://github.com/settings/tokens/new)** with `gist` scope
+2. **[Create public gist](https://gist.github.com/)** with coin data
+3. **Update `src/config.js`** with your token & gist ID
+4. **Enable GitHub Pages** in repository settings
+5. **Done!** 🎉
+
+👉 **[📋 Follow the complete Quick-Start Guide →](./docs/QUICK-START.md)**
+
+> 🆕 **NEW**: We've created a visual, step-by-step guide that makes deployment super easy!
+
+## ✨ Features
+
+- 🪙 **Coin Collection**: Add coins for team members who complain
+- 💰 **Automatic Calculation**: Converts complaints to SEK for treat funding
+- 🏆 **Leaderboard**: See who's contributing most to the treat fund
+- 🔐 **Email Authentication**: Authorized team members only
+- ⏱️ **Rate Limiting**: Prevents spam clicking
+- 🎵 **Sound Effects**: Satisfying coin drop sounds
+- 📱 **Responsive Design**: Works on all devices
+
+## 🔧 Technical Details
+
+- **Frontend**: Pure HTML, CSS, JavaScript (no build process required)
+- **Backend**: GitHub Gists API for data persistence
+- **Authentication**: Client-side email validation
+- **Deployment**: GitHub Pages compatible
+
+### Security Considerations
+
+- Uses minimal GitHub token scope (gist only)
+- Email validation is client-side (suitable for internal team use)
+- Rate limiting is client-side (less secure but functional)
+- All data is stored in public gists (consider privacy needs)
+
+## 💻 Local Development
+
+The app supports full local development without any GitHub setup required!
+
+#### Quick Start - Development Mode
+```bash
+# Option 1: Use the helper script
+./dev-server.sh
+
+# Option 2: Manual server start
+python3 -m http.server 8080
+# Then open: http://localhost:8080/index-dev.html
+```
+
+#### Development vs Production
+- **`index-dev.html`**: Immediate testing, localStorage persistence, no GitHub setup needed
+- **`index.html`**: Full production mode, requires GitHub token and gist setup
+
+#### Available Development Files
+- `docs/LOCAL-DEVELOPMENT.md` - Detailed local development guide
+- `src/config-dev.js` - Development configuration (no GitHub needed)
+- `dev-server.sh` - Convenience script to start local server
+- `index-dev.html` - Development version with localStorage persistence
+
+#### Live Development
+```bash
+# For automatic reload during development
+npx live-server --port=8080 --entry-file=index-dev.html
+```
+
+See [LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) for complete local development instructions.
+
+## Project Structure
+
+```
+complain-can/
+├── index.html              # Main application (production)
+├── index-dev.html          # Development version
+├── allowed-emails.json     # Authorized email addresses
+├── dev-server.sh          # Development server helper
+├── src/                   # Source code
+│   ├── config.js          # Production configuration
+│   ├── config-dev.js      # Development configuration
+│   ├── script.js          # Main application logic
+│   ├── gist-storage.js    # GitHub Gist storage handler
+│   └── setup-helper.js    # Setup utilities
+├── assets/                # Static assets
+│   ├── styles.css         # Application styles
+│   ├── favicon.ico        # Site icon
+│   └── *.mp3             # Sound effects
+├── docs/                  # Documentation
+│   ├── SETUP.md           # GitHub Pages deployment guide
+│   └── LOCAL-DEVELOPMENT.md # Local development guide
+├── data/                  # Reference data
+│   └── coins.json         # Initial data structure
+└── legacy-server/         # Original server implementation (archived)
+    ├── server.js          # Express.js server
+    ├── package.json       # Node.js dependencies
+    └── README.md          # Legacy documentation
+```
+
+## Legacy Server Version
+
+The original server-based version has been moved to `legacy-server/` folder. It's kept for reference but not needed for GitHub Pages deployment. See `legacy-server/README.md` for details.
 
 A tiny, static web app: whenever someone on the team complains, they add a virtual coin to the glass can. Acts as a fun micro-fund toward a future team treat.
 

@@ -1,92 +1,35 @@
-### Javascript specific ###
-node_modules
+# Complain Can - GitHub Pages Static Site
+# Clean .gitignore for static site deployment
+
+# System files
 .DS_Store
-.env
-.env.dev
-.env.sit
-.env.dtcapi*
-.env.acc
-.env.prod
-.env.preprod
-.env.dtcapi*
-apps/**/.env.local
-apps/**/.env.test
-apps/**/.env.local*
-apps/**/.next
-apps/**/build
-apps/**/next-env.d.ts
-site
-**/.test-results
-**/out
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-### Java specific ###
-HELP.md
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-**/.mvn
-mvnw
-mvnw.cmd
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-dist
-binaries
-user_input.log
-tmp
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+# Development/Editor files
 .vscode/
-.cursorignore
-.cursorindexingignore
+.idea/
+*.swp
+*.swo
+*~
 
-### machfeast-cli ###
-machfeast-cli-*
+# Temporary files
+*.tmp
+*.temp
+.cache/
 
-### Terraform ###
-.terraform
-.terraform*
-*.tfvars
+# Optional: Uncomment to exclude legacy server files from repo
+# legacy-server/
 
-### Lighthouse ###
-.lighthouseci
+# Log files
+*.log
+logs/
 
-### jest-junit ###
-.cli/test-results
-.cli/coverage
-
-### Secrets ###
-*.pem
-
-### Storybook ###
-storybook-static
-build-storybook.log
-
-### Misc ###
-.npmrc
-yarn.lock
-http-client.private.env.json
+# Environment files (if any secrets are added)
+.env
+.env.local
+.env.production

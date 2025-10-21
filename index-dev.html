@@ -3,10 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Team Complaint Can</title>
+  <title>Team Complaint Can - Development</title>
   <meta name="description" content="Add a coin to the team's complaint can whenever someone complains." />
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
   <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    /* Development mode indicator */
+    body::before {
+      content: "🔧 DEVELOPMENT MODE - Data stored locally";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #ff6b35;
+      color: white;
+      text-align: center;
+      padding: 4px;
+      font-size: 12px;
+      z-index: 9999;
+      font-weight: bold;
+    }
+    
+    .app-header {
+      margin-top: 30px; /* Account for dev banner */
+    }
+  </style>
 </head>
 <body>
   <!-- Login screen removed - direct access -->
@@ -50,40 +71,49 @@
           <div class="loader-bar">
             <div class="loader-progress"></div>
           </div>
-          <p class="loader-text">Next vote available in <span id="cooldownSeconds">30</span>s</p>
+          <div class="loader-text">
+            Wait <span id="cooldownSeconds">30</span>s before next vote
+          </div>
         </div>
-        <button id="resetBtn" class="reset" type="button" aria-label="Reset coin count" hidden>Reset</button>
+        <button class="reset-btn" id="resetBtn" type="button" hidden>
+          Reset
+        </button>
       </section>
-  </div>
+    </div>
   </main>
-  <footer class="app-footer">
-    <p>Complain more to get more to the beer fund!</p>
-  </footer>
-  
-  <!-- Login modal -->
-  <div id="loginModal" class="modal" style="display: flex;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h2 class="modal-title">Welcome to Grebcan</h2>
-      <p class="modal-message">Enter your email to continue:</p>
-      <input type="email" id="emailInput" placeholder="your.name@grebban.com" style="width: 100%; padding: 0.75rem; margin: 1rem 0; border: 1px solid var(--border-subtle); border-radius: 0.5rem; background: var(--bg-primary); color: var(--text-primary); font-size: 1rem;">
-      <button id="loginBtn" class="modal-close" type="button">Continue</button>
+
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal" hidden>
+    <div class="modal-backdrop">
+      <div class="modal-content">
+        <h2>Welcome to Grebcan!</h2>
+        <p>Please enter your email to access the complaint can:</p>
+        <input type="email" id="emailInput" placeholder="your.email@grebban.com" autocomplete="email" />
+        <button id="loginBtn" class="primary-btn">Login</button>
+        <div class="modal-footer">
+          <small>Only authorized team members can access this app</small>
+        </div>
+      </div>
     </div>
   </div>
-  
-  <!-- Cheeky popup modal -->
-  <div id="cheatModal" class="modal" hidden>
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-emoji">🚫</div>
-      <h2 class="modal-title">You can't cheat!</h2>
-      <p class="modal-message">Nice try, but complaints are forever! 😄</p>
-      <button id="closeModal" class="modal-close" type="button">Got it!</button>
+
+  <!-- Cheat Prevention Modal -->
+  <div class="modal" id="cheatModal" hidden>
+    <div class="modal-backdrop">
+      <div class="modal-content">
+        <h2>Nice try! 😄</h2>
+        <p>But there's no cheating allowed in the complaint can!</p>
+        <p>Every coin represents a real complaint that deserves proper acknowledgment.</p>
+        <button id="closeModal" class="primary-btn">Got it!</button>
+        <div class="modal-footer">
+          <small>Keep the complaints coming honestly 🪙</small>
+        </div>
+      </div>
     </div>
   </div>
-  
+
   <!-- Load configuration and dependencies first -->
-  <script src="src/config.js"></script>
+  <script src="src/config-dev.js"></script>
   <script src="src/gist-storage.js"></script>
   <script src="src/script.js" defer></script>
 </body>

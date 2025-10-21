@@ -16,16 +16,24 @@
   const cooldownSeconds = document.getElementById('cooldownSeconds');
   const jar = document.querySelector('.jar');
   const jarNeck = document.querySelector('.jar-neck');
-  const API_BASE = ''; // Same origin (server serves static files)
   const MEMBERS = ['Isac','Hannah','Andreas','Karl','Daniel','Doug','Marina'];
   const VALUE_PER_COIN = 5; // SEK per coin
 
   let count = 0;
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
-  let serverAvailable = false;
+  let storage = null;
   let allowedEmails = [];
   let lastClickTime = 0;
   const RATE_LIMIT_MS = 30000; // 30 seconds
+  
+  // Initialize storage
+  function initStorage() {
+    if (typeof window.CONFIG === 'undefined' || typeof window.GistStorage === 'undefined') {
+      console.error('Missing CONFIG or GistStorage. Make sure config.js and gist-storage.js are loaded.');
+      return null;
+    }
+    return new window.GistStorage(window.CONFIG);
+  }
 
   // Load allowed emails
   async function loadAllowedEmails() {
@@ -192,23 +200,40 @@
   }
 
   async function load() {
-    try {
-      const res = await fetch(API_BASE + '/api/coins');
-      if (res.ok) {
-        const data = await res.json();
-        count = data.total;
-        memberCounts = data.members;
-        serverAvailable = true;
-      } else { 
-        throw new Error(`Server responded ${res.status}`); 
+    if (!storage) {
+      storage = initStorage();
+      if (!storage) {
+        console.error('Failed to initialize storage');
+        count = 0;
+        memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
+        updateDisplay();
+        renderCoins(count);
+        renderMemberStats();
+        toggleReset();
+        return;
       }
-    } catch {
-      alert('Backend server not running! Start with: node server.js');
-      // Reset to zero state when server unavailable
+    }
+
+    try {
+      const data = await storage.loadData();
+      count = data.total || 0;
+      memberCounts = data.members || Object.fromEntries(MEMBERS.map(m=>[m,0]));
+      
+      // Ensure all members exist in the data
+      MEMBERS.forEach(member => {
+        if (!(member in memberCounts)) {
+          memberCounts[member] = 0;
+        }
+      });
+      
+      console.log('Loaded coin data:', { count, memberCounts });
+    } catch (error) {
+      console.error('Failed to load coin data:', error.message);
+      // Use fallback data
       count = 0;
       memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
-      serverAvailable = false;
     }
+    
     updateDisplay();
     renderCoins(count);
     renderMemberStats();
@@ -297,8 +322,8 @@
       return;
     }
     
-    if (!serverAvailable) {
-      alert('Server not available. Cannot save coin.');
+    if (!storage) {
+      alert('Storage not available. Please check your configuration.');
       return;
     }
     
@@ -318,76 +343,44 @@
     playCoinSound();
     toggleReset();
     
-    // Persist to server
+    // Persist to Gist
     try {
-      const res = await fetch(API_BASE + '/api/coins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ member, email: userEmail })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        count = data.total; 
-        memberCounts = data.members;
-        updateDisplay();
-        renderMemberStats();
-      } else if (res.status === 401 || res.status === 403) {
-        // Unauthorized - email not allowed
-        const errorData = await res.json();
-        alert(errorData.message || 'Your email is not authorized to vote. Please log in with an authorized email.');
-        // Rollback optimistic update, clear session, show login
-        count--;
-        memberCounts[member] = (memberCounts[member] || 1) - 1;
-        updateDisplay();
-        renderMemberStats();
-        lastClickTime = 0;
-        enableButtons();
-        sessionStorage.removeItem('userName');
-        sessionStorage.removeItem('userEmail');
-        loginModal.style.display = 'flex';
-        emailInput.focus();
-      } else if (res.status === 429) {
-        // Rate limit exceeded on server (shouldn't happen with client-side limiting, but just in case)
-        const errorData = await res.json();
-        alert(errorData.message || 'Please wait before voting again');
-        // Rollback optimistic update and reset timer
-        count--;
-        memberCounts[member] = (memberCounts[member] || 1) - 1;
-        updateDisplay();
-        renderMemberStats();
-        lastClickTime = 0; // Reset so user can try again
-        enableButtons();
-      } else {
-        // Try to get error message from response
-        let errorMessage = 'Failed to save coin to server!';
-        try {
-          const errorData = await res.json();
-          if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch {
-          // Could not parse error response
-        }
-        alert(errorMessage);
-        // Rollback optimistic update and reset
-        count--;
-        memberCounts[member] = (memberCounts[member] || 1) - 1;
-        updateDisplay();
-        renderMemberStats();
-        serverAvailable = false;
-        lastClickTime = 0;
-        enableButtons();
+      const dataToSave = {
+        total: count,
+        members: memberCounts
+      };
+      
+      const savedData = await storage.saveData(dataToSave);
+      
+      // Update with the actual saved data (in case of concurrent updates)
+      count = savedData.total;
+      memberCounts = savedData.members;
+      updateDisplay();
+      renderMemberStats();
+      
+      console.log(`Coin added for ${member}. Total: ${count}`);
+    } catch (error) {
+      console.error('Failed to save coin:', error.message);
+      
+      // Show user-friendly error message
+      let errorMessage = 'Failed to save coin data!';
+      if (error.message.includes('token not configured')) {
+        errorMessage = 'GitHub token not configured. Please check the setup instructions.';
+      } else if (error.message.includes('Gist ID not configured')) {
+        errorMessage = 'Gist not configured. Please check the setup instructions.';
+      } else if (error.message.includes('403')) {
+        errorMessage = 'Access denied. Please check your GitHub token permissions.';
+      } else if (error.message.includes('404')) {
+        errorMessage = 'Gist not found. Please check your gist ID in the configuration.';
       }
-    } catch {
-      alert('Network error saving coin!');
-      // Rollback and reset
+      
+      alert(errorMessage);
+      
+      // Rollback optimistic update
       count--;
       memberCounts[member] = (memberCounts[member] || 1) - 1;
       updateDisplay();
       renderMemberStats();
-      serverAvailable = false;
       lastClickTime = 0;
       enableButtons();
     }
@@ -465,12 +458,41 @@
     renderCoins(count);
   });
 
-  function reset() {
+  async function reset() {
     // No cheating allowed! 😄
     // Show the fun modal instead of a boring alert
     const modal = document.getElementById('cheatModal');
     modal.hidden = false;
+    
+    // Actually, let's provide a way to reset if needed (for testing)
+    // This could be enabled by holding Shift while clicking or similar
+    // For now, just show the modal
   }
+  
+  // Hidden reset function for testing/admin purposes
+  async function actualReset() {
+    if (!storage) {
+      alert('Storage not available');
+      return;
+    }
+    
+    try {
+      const resetData = await storage.resetData();
+      count = resetData.total;
+      memberCounts = resetData.members;
+      updateDisplay();
+      renderCoins(count);
+      renderMemberStats();
+      toggleReset();
+      console.log('Data reset successfully');
+    } catch (error) {
+      console.error('Failed to reset data:', error.message);
+      alert('Failed to reset data: ' + error.message);
+    }
+  }
+  
+  // Make reset available for testing (can be called from browser console)
+  window.resetCoins = actualReset;
 
   function toggleReset() {
     resetBtn.hidden = count === 0;
@@ -495,7 +517,7 @@
       if (globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       try {
         if (!jarShakeAudio) {
-          jarShakeAudio = new Audio('shaking-coins-in-a-jar-2-38980.mp3');
+          jarShakeAudio = new Audio('assets/shaking-coins-in-a-jar-2-38980.mp3');
           jarShakeAudio.volume = 0.4;
         }
         jarShakeAudio.currentTime = 0;
@@ -535,7 +557,7 @@
     try {
       // Create or reuse audio element
       if (!coinAudio) {
-        coinAudio = new Audio('coin-drop-39914.mp3');
+        coinAudio = new Audio('assets/coin-drop-39914.mp3');
         coinAudio.volume = 0.3; // Adjust volume (0.0 to 1.0)
       }
       // Reset and play (allows rapid clicks)
@@ -548,9 +570,16 @@
 
   // Initialize app
   async function init() {
+    console.log('Initializing Complain Can app...');
+    
+    // Initialize storage first
+    storage = initStorage();
+    
     await loadAllowedEmails();
     initializeUserName();
-    load();
+    await load();
+    
+    console.log('App initialized successfully');
   }
   
   init();
