@@ -72,18 +72,35 @@
         console.log('📄 Loaded email config:', data);
         
         // Support both legacy format (plain emails) and new format (hashes)
-        if (data.allowedEmailHashes) {
+        if (data.allowedEmailHashes && data.allowedEmailHashes.length > 0) {
           // New secure format with hashes
-          allowedEmails = data.allowedEmailHashes || [];
+          allowedEmails = data.allowedEmailHashes;
           console.log('✅ Loaded secure email hashes for validation, count:', allowedEmails.length);
           console.log('🔑 First few hashes:', allowedEmails.slice(0, 2));
-        } else if (data.allowedEmails) {
-          // Legacy format - warn about security
-          console.warn('⚠️  Using legacy plain-text email format. Consider migrating to hashed emails for better privacy.');
-          allowedEmails = data.allowedEmails || [];
-          console.log('📧 Legacy emails count:', allowedEmails.length);
+        } else if (data.allowedEmails && data.allowedEmails.length > 0) {
+          // Legacy format - convert plain emails to hashes on-the-fly
+          console.warn('⚠️  Found legacy plain-text emails. Converting to hashes...');
+          allowedEmails = [];
+          
+          // Convert legacy emails to hashes if EmailHasher is available
+          if (window.emailHasher) {
+            for (const email of data.allowedEmails) {
+              try {
+                const hash = await window.emailHasher.hashEmail(email);
+                allowedEmails.push(hash);
+              } catch (error) {
+                console.error('Failed to hash email:', email, error);
+              }
+            }
+            console.log('✅ Converted legacy emails to hashes, count:', allowedEmails.length);
+          } else {
+            // Fallback: use plain emails directly (less secure but works)
+            console.warn('⚠️  EmailHasher not available, using plain emails (INSECURE!)');
+            allowedEmails = data.allowedEmails;
+          }
         } else {
           console.warn('⚠️  No allowedEmailHashes or allowedEmails found in config');
+          console.warn('📄 Config structure:', Object.keys(data));
           allowedEmails = [];
         }
       } else {
@@ -129,51 +146,88 @@
       return;
     }
     
-    // Check if EmailHasher is available
-    if (!window.emailHasher) {
-      console.error('❌ EmailHasher not available');
-      alert('Email hashing system not loaded. Please refresh the page.');
+    console.log('📋 Allowed emails/hashes count:', allowedEmails.length);
+    console.log('📧 Checking email:', email);
+    
+    // Check if we have any allowed emails/hashes
+    if (allowedEmails.length === 0) {
+      console.error('❌ No allowed emails configured');
+      alert('No authorized emails configured. Please contact an administrator.');
       return;
     }
     
-    console.log('✅ EmailHasher available, proceeding with validation');
-    console.log('📋 Allowed hashes count:', allowedEmails.length);
+    let isValid = false;
+    let userHash = null;
     
-    // Validate and hash email using the new secure system
-    try {
-      const validation = await window.emailHasher.validateAndHashEmail(email, allowedEmails);
+    // Try different validation methods
+    if (window.emailHasher) {
+      console.log('✅ EmailHasher available, using secure validation');
       
-      console.log('🔍 Validation result:', validation);
-      
-      if (!validation.isValid) {
-        console.warn('❌ Validation failed:', validation.error);
-        alert(`Access denied: ${validation.error}`);
-        return;
+      try {
+        // Method 1: New secure hash validation
+        const validation = await window.emailHasher.validateAndHashEmail(email, allowedEmails);
+        
+        if (validation.isValid) {
+          console.log('✅ Hash validation successful');
+          isValid = true;
+          userHash = validation.hash;
+        } else {
+          console.log('⚠️  Hash validation failed, trying legacy validation...');
+          
+          // Method 2: Legacy plain email validation (fallback)
+          const normalizedEmail = email.toLowerCase().trim();
+          if (allowedEmails.includes(normalizedEmail)) {
+            console.log('✅ Legacy validation successful');
+            isValid = true;
+            userHash = await window.emailHasher.hashEmail(email);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Validation error:', error);
+      }
+    } else {
+      console.warn('⚠️  EmailHasher not available, using basic validation');
+      // Method 3: Basic validation without hashing (least secure)
+      const normalizedEmail = email.toLowerCase().trim();
+      isValid = allowedEmails.includes(normalizedEmail);
+    }
+    
+    if (!isValid) {
+      console.warn('❌ All validation methods failed');
+      alert('Access denied: Email not authorized for this application');
+      return;
+    }
+    
+    console.log('✅ Email validation successful');
+    
+    // Extract display name and create identifiers
+    let userName, userIdentifier;
+    
+    if (window.emailHasher) {
+      userName = window.emailHasher.extractDisplayNameFromEmail(email);
+      userIdentifier = userHash ? window.emailHasher.createUserIdentifier(userHash) : email.split('@')[0];
+    } else {
+      // Fallback name extraction
+      userName = email.split('@')[0].split('.')[0];
+      userName = userName.charAt(0).toUpperCase() + userName.slice(1);
+      userIdentifier = email;
+    }
+    
+    if (userName) {
+      // Store user data
+      sessionStorage.setItem('userName', userName);
+      sessionStorage.setItem('userIdentifier', userIdentifier);
+      if (userHash) {
+        sessionStorage.setItem('userEmailHash', userHash);
       }
       
-      console.log('✅ Email validation successful');
+      updateUserDisplay(userName);
+      loginModal.style.display = 'none';
+      document.body.classList.add('app-loaded');
+      logoutBtn.hidden = false;
       
-      // Extract display name before we lose the plain email
-      const userName = window.emailHasher.extractDisplayNameFromEmail(email);
-      const userIdentifier = window.emailHasher.createUserIdentifier(validation.hash);
-      
-      if (userName) {
-        // Store user data using hashed identifiers for privacy
-        sessionStorage.setItem('userName', userName);
-        sessionStorage.setItem('userIdentifier', userIdentifier); // Hash-based ID
-        sessionStorage.setItem('userEmailHash', validation.hash); // Full hash for validation
-        
-        updateUserDisplay(userName);
-        loginModal.style.display = 'none';
-        document.body.classList.add('app-loaded');
-        logoutBtn.hidden = false;
-        
-        // Check for existing cooldown after login (now uses hash-based identifier)
-        checkExistingCooldown();
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Login failed. Please try again.');
+      // Check for existing cooldown after login
+      checkExistingCooldown();
     }
   }
 
