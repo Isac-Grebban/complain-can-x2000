@@ -64,10 +64,11 @@
   async function loadAllowedEmails() {
     console.log('📥 Loading allowed emails...');
     console.log('🌐 Current URL:', window.location.href);
-    console.log('📂 Fetching from:', window.location.origin + '/email-hashes.json');
+    console.log('📂 Fetching from:', window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/email-hashes.json');
     
     try {
-      const res = await fetch('/email-hashes.json');
+      // Use relative path to work with GitHub Pages subdirectory deployment
+      const res = await fetch('./email-hashes.json');
       console.log('📡 Fetch response status:', res.status);
       console.log('📡 Fetch response headers:', [...res.headers.entries()]);
       
