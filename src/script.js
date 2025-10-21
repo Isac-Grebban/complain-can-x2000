@@ -64,10 +64,10 @@
   async function loadAllowedEmails() {
     console.log('📥 Loading allowed emails...');
     console.log('🌐 Current URL:', window.location.href);
-    console.log('📂 Fetching from:', window.location.origin + '/allowed-emails.json');
+    console.log('📂 Fetching from:', window.location.origin + '/email-hashes.json');
     
     try {
-      const res = await fetch('/allowed-emails.json');
+      const res = await fetch('/email-hashes.json');
       console.log('📡 Fetch response status:', res.status);
       console.log('📡 Fetch response headers:', [...res.headers.entries()]);
       
@@ -77,7 +77,7 @@
         console.log('📄 Response length:', text.length);
         
         if (!text || text.trim() === '') {
-          console.error('❌ Empty response from allowed-emails.json');
+          console.error('❌ Empty response from email-hashes.json');
           allowedEmails = [];
           return;
         }
@@ -119,7 +119,7 @@
           allowedEmails = [];
         }
       } else {
-        console.error('❌ Failed to fetch allowed-emails.json, status:', res.status);
+        console.error('❌ Failed to fetch email-hashes.json, status:', res.status);
         allowedEmails = [];
       }
     } catch (error) {
