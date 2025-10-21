@@ -917,6 +917,94 @@ h1 {
   20%, 40%, 60%, 80% { transform: rotate(10deg); }
 }
 
+/* History Modal Specific Styles */
+.history-modal-content {
+  max-width: 600px;
+  max-height: 80vh;
+  width: 95%;
+}
+
+.history-content {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.375rem;
+  border-left: 3px solid var(--accent);
+  transition: background-color 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.history-item:last-child {
+  margin-bottom: 0;
+}
+
+.history-details {
+  flex: 1;
+}
+
+.history-action {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.history-meta {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.history-timestamp {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 2rem;
+}
+
+/* Scrollbar styling for history content */
+.history-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.history-content::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.history-content::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
+
 /* Responsive tweaks */
 @media (max-width: 600px) {
   .scene { margin-top: 1.5rem; }

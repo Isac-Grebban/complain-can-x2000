@@ -614,6 +614,19 @@
     modal.hidden = true;
   });
 
+  // History modal event listeners
+  const historyModal = document.getElementById('historyModal');
+  const closeHistoryModalBtn = document.getElementById('closeHistoryModal');
+  const historyModalBackdrop = historyModal?.querySelector('.modal-backdrop');
+  
+  closeHistoryModalBtn?.addEventListener('click', () => {
+    historyModal.hidden = true;
+  });
+  
+  historyModalBackdrop?.addEventListener('click', () => {
+    historyModal.hidden = true;
+  });
+
   // Lid lift animation
   function liftLid() {
     if (!jarNeck) return;
@@ -643,166 +656,55 @@
 
   // History viewer function
   function openHistoryViewer() {
-    const historyWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    const historyModal = document.getElementById('historyModal');
+    const historyContent = document.getElementById('historyContent');
     
-    const historyHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Complaint History - Team Complaints</title>
-  <style>
-    :root {
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #1a1a1a;
-      --bg-card: rgba(255,255,255,0.04);
-      --text-primary: #ffffff;
-      --text-secondary: #a0a0a0;
-      --accent: #2563eb;
-      --border-subtle: rgba(255,255,255,0.08);
-      --font-stack: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    }
-    
-    * { box-sizing: border-box; }
-    
-    body {
-      margin: 0;
-      padding: 2rem;
-      font-family: var(--font-stack);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.6;
-    }
-    
-    h1 {
-      text-align: center;
-      color: var(--text-primary);
-      margin-bottom: 2rem;
-      font-size: 2rem;
-      font-weight: 600;
-    }
-    
-    .summary {
-      text-align: center;
-      margin-bottom: 2rem;
-      padding: 1rem;
-      background: var(--bg-card);
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-subtle);
-    }
-    
-    .history-list {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    
-    .history-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      margin-bottom: 0.5rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 0.5rem;
-      transition: background 0.2s ease;
-    }
-    
-    .history-item:hover {
-      background: rgba(255,255,255,0.06);
-    }
-    
-    .history-main {
-      flex: 1;
-    }
-    
-    .history-action {
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-    
-    .history-details {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin-top: 0.25rem;
-    }
-    
-    .history-time {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      text-align: right;
-      min-width: 120px;
-    }
-    
-    .no-history {
-      text-align: center;
-      color: var(--text-secondary);
-      font-style: italic;
-      padding: 2rem;
-    }
-    
-    .member-highlight {
-      color: var(--accent);
-      font-weight: 600;
-    }
-  </style>
-</head>
-<body>
-  <h1>📜 Complaint History</h1>
-  
-  <div class="summary">
-    <p><strong>Total Entries:</strong> ${history.length}</p>
-    <p><strong>Current Total:</strong> ${count} complaints (${count * VALUE_PER_COIN} SEK)</p>
-  </div>
-  
-  <div class="history-list">
-    ${history.length === 0 ? 
-      '<div class="no-history">No complaints recorded yet. Start complaining to build the history!</div>' :
-      history.map(entry => {
-        const date = new Date(entry.timestamp);
-        const timeAgo = getTimeAgo(date);
-        const formattedTime = date.toLocaleString();
-        
-        return `
-          <div class="history-item">
-            <div class="history-main">
-              <div class="history-action">
-                🪙 <span class="member-highlight">${entry.addedBy}</span> added a coin for <span class="member-highlight">${entry.member}</span>
-              </div>
+    // Generate history content
+    const historyHtml = history.length === 0 ? 
+      '<div class="history-empty">No complaints recorded yet. Start complaining to build the history!</div>' :
+      `
+        <div style="text-align: center; margin-bottom: 1rem; padding: 0.75rem; background: rgba(37, 99, 235, 0.1); border-radius: 0.375rem; color: var(--text-secondary);">
+          <strong>${history.length}</strong> total entries • <strong>${count}</strong> complaints (${count * VALUE_PER_COIN} SEK)
+        </div>
+        ${history.map(entry => {
+          const date = new Date(entry.timestamp);
+          const timeAgo = getTimeAgo(date);
+          const formattedTime = date.toLocaleString();
+          
+          return `
+            <div class="history-item">
               <div class="history-details">
-                ${formattedTime}
+                <div class="history-action">
+                  🪙 <strong style="color: var(--accent);">${entry.addedBy}</strong> added a coin for <strong style="color: var(--accent);">${entry.member}</strong>
+                </div>
+                <div class="history-meta">
+                  <span>${formattedTime}</span>
+                  <span class="history-timestamp">${timeAgo}</span>
+                </div>
               </div>
             </div>
-            <div class="history-time">
-              ${timeAgo}
-            </div>
-          </div>
-        `;
-      }).join('')
-    }
-  </div>
+          `;
+        }).join('')}
+      `;
+    
+    // Set content and show modal
+    historyContent.innerHTML = historyHtml;
+    historyModal.hidden = false;
+  }
   
-  <script>
-    function getTimeAgo(date) {
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
-      if (diffMinutes < 1) return 'Just now';
-      if (diffMinutes < 60) return diffMinutes + 'm ago';
-      if (diffHours < 24) return diffHours + 'h ago';
-      if (diffDays < 30) return diffDays + 'd ago';
-      return date.toLocaleDateString();
-    }
-  </script>
-</body>
-</html>`;
-
-    historyWindow.document.write(historyHtml);
-    historyWindow.document.close();
+  // Helper function for time ago
+  function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return diffMinutes + 'm ago';
+    if (diffHours < 24) return diffHours + 'h ago';
+    if (diffDays < 30) return diffDays + 'd ago';
+    return date.toLocaleDateString();
   }
 
   // Keyboard accessibility: space/enter when focused on button is native; no extra needed.
