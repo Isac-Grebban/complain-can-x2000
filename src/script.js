@@ -7,6 +7,10 @@
   const countValueEl = document.getElementById('countValue');
   const pluralSuffixEl = document.getElementById('pluralSuffix');
   const container = document.getElementById('coinContainer');
+  // Session configuration
+  const SESSION_DURATION_DAYS = 14; // How long to keep users logged in
+  const SESSION_KEY_PREFIX = 'complainCan_';
+
   const memberStatsEl = document.getElementById('memberStats');
   const userInfoEl = document.getElementById('userInfo');
   const loginModal = document.getElementById('loginModal');
@@ -58,6 +62,71 @@
       return null;
     }
     return new window.GistStorage(window.CONFIG);
+  }
+
+  let allowedEmailHashes = [];
+
+  // Session management functions
+  function saveUserSession(userName, userIdentifier, userEmailHash) {
+    const sessionData = {
+      userName,
+      userIdentifier,
+      userEmailHash,
+      expiresAt: Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000),
+      createdAt: Date.now()
+    };
+    
+    localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(sessionData));
+    console.log('💾 Session saved, expires in', SESSION_DURATION_DAYS, 'days');
+  }
+
+  function loadUserSession() {
+    try {
+      const sessionData = localStorage.getItem(SESSION_KEY_PREFIX + 'session');
+      if (!sessionData) return null;
+
+      const session = JSON.parse(sessionData);
+      
+      // Check if session has expired
+      if (Date.now() > session.expiresAt) {
+        console.log('⏰ Session expired, clearing...');
+        clearUserSession();
+        return null;
+      }
+
+      console.log('✅ Valid session found, expires:', new Date(session.expiresAt).toLocaleString());
+      return session;
+    } catch (error) {
+      console.error('❌ Error loading session:', error);
+      clearUserSession();
+      return null;
+    }
+  }
+
+  function clearUserSession() {
+    localStorage.removeItem(SESSION_KEY_PREFIX + 'session');
+    console.log('🗑️ Session cleared');
+  }
+
+  function extendUserSession() {
+    const session = loadUserSession();
+    if (session) {
+      session.expiresAt = Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+      localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(session));
+      console.log('⚡ Session extended');
+    }
+  }
+
+  function getCurrentUserSession() {
+    return loadUserSession();
+  }
+
+  function trackUserActivity() {
+    // Extend session on user activity (like adding coins)
+    const session = getCurrentUserSession();
+    if (session) {
+      extendUserSession();
+    }
   }
 
   // Load allowed email hashes (now using SHA256 for privacy)
@@ -134,18 +203,22 @@
   // User name handling is now done by EmailHasher class
 
   function initializeUserName() {
-    const userName = sessionStorage.getItem('userName');
-    const userIdentifier = sessionStorage.getItem('userIdentifier');
-    const userEmailHash = sessionStorage.getItem('userEmailHash');
+    // Try to load persistent session first
+    const session = loadUserSession();
     
-    if (userName && userIdentifier && userEmailHash) {
-      // Already logged in with valid hash-based session
-      updateUserDisplay(userName);
+    if (session) {
+      // Already logged in with valid persistent session
+      console.log('🔐 Restoring user session for:', session.userName);
+      updateUserDisplay(session.userName);
       loginModal.style.display = 'none';
       document.body.classList.add('app-loaded');
       logoutBtn.hidden = false;
+      
+      // Extend session on successful restore (activity-based renewal)
+      extendUserSession();
     } else {
-      // Show login modal
+      // No valid session, show login modal
+      console.log('🔑 No valid session found, showing login');
       loginModal.style.display = 'flex';
       emailInput.focus();
       logoutBtn.hidden = true;
@@ -230,12 +303,8 @@
     }
     
     if (userName) {
-      // Store user data
-      sessionStorage.setItem('userName', userName);
-      sessionStorage.setItem('userIdentifier', userIdentifier);
-      if (userHash) {
-        sessionStorage.setItem('userEmailHash', userHash);
-      }
+      // Save persistent session (replaces sessionStorage)
+      saveUserSession(userName, userIdentifier, userHash);
       
       updateUserDisplay(userName);
       loginModal.style.display = 'none';
@@ -248,10 +317,8 @@
   }
 
   function handleLogout() {
-    // Clear session storage (now includes hashed identifiers)
-    sessionStorage.removeItem('userName');
-    sessionStorage.removeItem('userIdentifier');
-    sessionStorage.removeItem('userEmailHash');
+    // Clear persistent session
+    clearUserSession();
     
     // Reset UI
     updateUserDisplay('Guest');
@@ -295,8 +362,7 @@
   // Allow changing name on click
   if (userInfoEl) {
     userInfoEl.addEventListener('click', () => {
-      sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('userEmail');
+      clearUserSession();
       emailInput.value = '';
       loginModal.style.display = 'flex';
       emailInput.focus();
@@ -304,7 +370,8 @@
   }
 
   function disableButtons() {
-    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    const session = getCurrentUserSession();
+    const userIdentifier = session?.userIdentifier;
     if (!userIdentifier) return;
     
     // Disable all member buttons
@@ -456,9 +523,10 @@
 
   async function addCoin(member) {
     // Check if user is logged in with authorized credentials
-    const userIdentifier = sessionStorage.getItem('userIdentifier');
-    const userEmailHash = sessionStorage.getItem('userEmailHash');
-    const userName = sessionStorage.getItem('userName');
+    const session = getCurrentUserSession();
+    const userIdentifier = session?.userIdentifier;
+    const userEmailHash = session?.userEmailHash;
+    const userName = session?.userName;
     
     if (!userIdentifier || !userEmailHash || !userName) {
       alert('Please log in to vote');
@@ -470,9 +538,7 @@
     // Verify email hash is still in allowed list (for revoked access)
     if (allowedEmails.length > 0 && !allowedEmails.includes(userEmailHash)) {
       alert('Your access has been revoked. Please contact an administrator.');
-      sessionStorage.removeItem('userName');
-      sessionStorage.removeItem('userIdentifier');
-      sessionStorage.removeItem('userEmailHash');
+      clearUserSession();
       loginModal.style.display = 'flex';
       emailInput.focus();
       return;
@@ -496,11 +562,14 @@
     // Update user's last click time in localStorage (using hashed identifier)
     setUserLastClickTime(userIdentifier, now);
     
+    // Track user activity to extend session
+    trackUserActivity();
+    
     // Disable all buttons
     disableButtons();
     
     // Get current user info
-    const currentUser = sessionStorage.getItem('userName') || 'Anonymous';
+    const currentUser = session?.userName || 'Anonymous';
     
     // Create history entry
     const historyEntry = {
@@ -564,7 +633,8 @@
       updateDisplay();
       renderMemberStats();
       // Reset user's cooldown on error
-      const userIdentifier = sessionStorage.getItem('userIdentifier');
+      const session = getCurrentUserSession();
+      const userIdentifier = session?.userIdentifier;
       if (userIdentifier) {
         localStorage.removeItem(getUserCooldownKey(userIdentifier));
       }
@@ -1378,7 +1448,8 @@
 
   // Check for existing user cooldown on page load
   function checkExistingCooldown() {
-    const userIdentifier = sessionStorage.getItem('userIdentifier');
+    const session = getCurrentUserSession();
+    const userIdentifier = session?.userIdentifier;
     if (!userIdentifier) return;
     
     const remainingCooldown = getRemainingCooldown(userIdentifier);
