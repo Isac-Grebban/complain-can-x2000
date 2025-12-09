@@ -784,6 +784,25 @@
     // Update server-side rate limit (stored in Gist - cannot be bypassed!)
     userVoteTimes[userIdentifier] = now;
     
+    // Track user activity to extend session
+    trackUserActivity();
+    
+    // Disable all buttons
+    disableButtons();
+    
+    // Get current user info
+    const currentUser = session?.userName || 'Anonymous';
+    
+    // Collect device fingerprint for anti-cheat logging
+    const deviceFingerprint = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenRes: `${screen.width}x${screen.height}`,
+      cores: navigator.hardwareConcurrency || 'unknown',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    
     // Detect robotic timing patterns (suspiciously regular intervals)
     const userHistory = history.filter(h => h.addedBy === (session?.userName || 'Anonymous'));
     if (userHistory.length >= 3) {
@@ -803,25 +822,6 @@
         deviceFingerprint.avgInterval = avgInterval;
       }
     }
-    
-    // Track user activity to extend session
-    trackUserActivity();
-    
-    // Disable all buttons
-    disableButtons();
-    
-    // Get current user info
-    const currentUser = session?.userName || 'Anonymous';
-    
-    // Collect device fingerprint for anti-cheat logging
-    const deviceFingerprint = {
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      language: navigator.language,
-      screenRes: `${screen.width}x${screen.height}`,
-      cores: navigator.hardwareConcurrency || 'unknown',
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    };
     
     // Create history entry with device info
     const historyEntry = {
