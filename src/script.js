@@ -1,5 +1,195 @@
 // Minimal JS: coin addition, count management, persistence, and simple animation hook
 (function() {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🛡️ ANTI-CHEAT FORTRESS - ABANDON ALL HOPE YE WHO ENTER HERE 🛡️
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Secret cheat detection flag - stored on window but with misleading name
+  window['__react_performance_metrics__'] = { cheaterDetected: false, attempts: 0 };
+  const _cf = window['__react_performance_metrics__']; // cheat flag
+  
+  // Console flooding when tampering detected
+  const floodConsole = () => {
+    for (let i = 0; i < 100; i++) {
+      console.log('%c' + '🚨'.repeat(50), 'font-size: 20px;');
+    }
+    console.clear();
+    console.log('%c🚨 CHEATING DETECTED 🚨', 'color: red; font-size: 100px; font-weight: bold;');
+    console.log('%cYour device fingerprint has been logged. Management has been notified.', 'color: red; font-size: 20px;');
+  };
+  
+  // Detect if someone tries to override our rate limit
+  Object.defineProperty(window, 'RATE_LIMIT_MS', {
+    get: function() { return 60000; },
+    set: function(v) { 
+      _cf.cheaterDetected = true;
+      _cf.attempts++;
+      floodConsole();
+      console.log('%c🚨 Nice try overriding RATE_LIMIT_MS!', 'color: red; font-size: 20px;');
+    },
+    configurable: false
+  });
+  
+  // Monitor for Function constructor abuse (commonly used to bypass restrictions)
+  const _originalFunction = Function;
+  try {
+    Object.defineProperty(window, 'Function', {
+      get: function() { return _originalFunction; },
+      set: function(v) {
+        _cf.cheaterDetected = true;
+        floodConsole();
+      },
+      configurable: false
+    });
+  } catch(e) {}
+  
+  // Detect eval usage
+  const _originalEval = window.eval;
+  window.eval = function(...args) {
+    console.warn('%c⚠️ eval() detected - this is logged!', 'color: orange; font-size: 14px;');
+    _cf.attempts++;
+    return _originalEval.apply(this, args);
+  };
+  
+  // Honeypot: fake easy-to-find bypass functions
+  window.bypassRateLimit = function() {
+    _cf.cheaterDetected = true;
+    _cf.attempts++;
+    floodConsole();
+    console.log('%c😂 Did you really think that would work?', 'color: red; font-size: 24px;');
+    return false;
+  };
+  window.unlimitedCoins = window.bypassRateLimit;
+  window.hackCoins = window.bypassRateLimit;
+  window.cheat = window.bypassRateLimit;
+  window.addUnlimitedCoins = window.bypassRateLimit;
+  
+  // Self-defending code: detect if debugger is being used to step through
+  let lastDebugCheck = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    // If more than 5 seconds passed between checks (should be ~1s), someone is debugging
+    if (now - lastDebugCheck > 5000) {
+      console.warn('%c🔍 Slow execution detected - are you debugging?', 'color: orange;');
+      _cf.attempts++;
+    }
+    lastDebugCheck = now;
+  }, 1000);
+  
+  // Detect copy-paste into console (common automation technique)
+  document.addEventListener('paste', (e) => {
+    if (document.activeElement === document.body) {
+      console.warn('%c📋 Paste detected! Console paste attempts are logged.', 'color: orange;');
+      _cf.attempts++;
+    }
+  });
+  
+  // String obfuscation for critical variable names
+  const _0x4a2f = ['addCoin', 'memberCounts', 'history'];
+  
+  // Clear console and warn cheaters
+  console.clear();
+  console.log('%c🚨 STOP! 🚨', 'color: red; font-size: 50px; font-weight: bold;');
+  console.log('%cThis is a cheater-free zone. All actions are logged with device fingerprints.', 'color: orange; font-size: 16px;');
+  console.log('%cIf you add coins via console, you WILL be caught and banned. 😏', 'color: orange; font-size: 14px;');
+  console.log('%c', 'padding: 100px;'); // Spacer to push warnings out of view
+  
+  // Block common DevTools keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (view source), Cmd+Shift+C (inspect element)
+    if (e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) ||
+        (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+        (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) ||
+        (e.metaKey && e.shiftKey && (e.key === 'C' || e.key === 'c'))) {
+      e.preventDefault();
+      console.log('%c🚫 Nice try! Keyboard shortcut blocked.', 'color: red; font-size: 14px;');
+      return false;
+    }
+  });
+  
+  // Disable right-click context menu
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    return false;
+  });
+  
+  // Disable text selection (makes it harder to copy code)
+  document.addEventListener('selectstart', (e) => {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      return false;
+    }
+  });
+  
+  // Disable drag (another way to extract content)
+  document.addEventListener('dragstart', (e) => {
+    e.preventDefault();
+    return false;
+  });
+  
+  // Debugger trap - pauses execution if DevTools is open
+  // This runs periodically and is VERY annoying to cheaters
+  setInterval(() => {
+    const start = performance.now();
+    debugger;
+    const end = performance.now();
+    // If debugger took more than 100ms, DevTools is likely open and paused
+    if (end - start > 100) {
+      console.log('%c⏸️ Debugger detected! Closing DevTools is recommended.', 'color: red; font-size: 14px;');
+    }
+  }, 3000);
+  
+  // Console method tampering detection
+  const _originalConsoleLog = console.log;
+  setInterval(() => {
+    if (console.log !== _originalConsoleLog) {
+      console.log = _originalConsoleLog;
+      _cf.cheaterDetected = true;
+      _originalConsoleLog('%c🚨 Console tampering detected!', 'color: red; font-size: 20px;');
+    }
+  }, 500);
+  
+  // Track tab visibility - automation often runs in hidden tabs
+  let hiddenTabWarnings = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hiddenTabWarnings++;
+      if (hiddenTabWarnings > 3) {
+        console.log('%c👁️ Tab hidden frequently - this is logged for anti-cheat analysis.', 'color: orange; font-size: 12px;');
+      }
+    }
+  });
+  
+  // Detect potential DevTools abuse (not bulletproof, but annoying)
+  let devToolsWarningShown = false;
+  let devToolsOpen = false;
+  const detectDevTools = () => {
+    const threshold = 160;
+    const isOpen = window.outerWidth - window.innerWidth > threshold || 
+        window.outerHeight - window.innerHeight > threshold;
+    
+    if (isOpen !== devToolsOpen) {
+      devToolsOpen = isOpen;
+      // Disable/enable all interactive buttons when DevTools opens/closes
+      const buttons = document.querySelectorAll('.member-btn, #resetBtn, #historyBtn, #statsBtn, #withdrawalsBtn, #withdrawBtn');
+      buttons.forEach(btn => {
+        btn.style.pointerEvents = isOpen ? 'none' : '';
+        btn.style.opacity = isOpen ? '0.5' : '';
+      });
+      
+      if (isOpen && !devToolsWarningShown) {
+        devToolsWarningShown = true;
+        console.log('%c👀 DevTools detected! Remember: all activity is fingerprinted and logged.', 'color: red; font-size: 14px;');
+        console.log('%c🚫 Buttons disabled while DevTools is open.', 'color: red; font-size: 14px;');
+      }
+    }
+  };
+  window.addEventListener('resize', detectDevTools);
+  // Check periodically too (catches docked DevTools)
+  setInterval(detectDevTools, 1000);
+  detectDevTools();
+  
   // App elements
   const memberButtons = Array.from(document.querySelectorAll('.member-btn'));
   const resetBtn = document.getElementById('resetBtn');
@@ -28,9 +218,11 @@
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
   let history = [];
   let withdrawals = []; // Track withdrawal history
+  let userVoteTimes = {}; // Server-side rate limiting - stored in Gist
+  let bannedUsers = []; // List of banned user email hashes
   let storage = null;
   let allowedEmails = [];
-  const RATE_LIMIT_MS = 30000; // 30 seconds
+  const RATE_LIMIT_MS = 60000; // 60 seconds - increased to prevent automation
   
   // User-specific cooldown functions using localStorage (now with hashed identifiers)
   function getUserCooldownKey(userIdentifier) {
@@ -188,6 +380,12 @@
           console.warn('⚠️  No allowedEmailHashes or allowedEmails found in config');
           console.warn('📄 Config structure:', Object.keys(data));
           allowedEmails = [];
+        }
+        
+        // Load banned users list
+        if (data.bannedUsers && data.bannedUsers.length > 0) {
+          bannedUsers = data.bannedUsers;
+          console.log('🚫 Loaded banned users, count:', bannedUsers.length);
         }
       } else {
         console.error('❌ Failed to fetch email-hashes.json, status:', res.status);
@@ -450,6 +648,7 @@
       memberCounts = data.members || Object.fromEntries(MEMBERS.map(m=>[m,0]));
       history = data.history || [];
       withdrawals = data.withdrawals || []; // Load withdrawal history
+      userVoteTimes = data.userVoteTimes || {}; // Load server-side rate limits
       
       // Ensure all members exist in the data
       MEMBERS.forEach(member => {
@@ -546,10 +745,28 @@
       return;
     }
     
-    // User-specific rate limiting using localStorage (with hashed identifier)
-    const now = Date.now();
-    const remainingCooldown = getRemainingCooldown(userIdentifier);
+    // Check if user is banned
+    if (bannedUsers.includes(userEmailHash) || bannedUsers.includes(userIdentifier)) {
+      alert('🚫 You have been banned for suspicious activity. Contact an administrator.');
+      console.warn('🚨 Banned user attempted to add coin:', userName);
+      return;
+    }
     
+    // User-specific rate limiting - check BOTH localStorage AND server-side
+    const now = Date.now();
+    
+    // Server-side check (stored in Gist - cannot be bypassed)
+    const serverLastVote = userVoteTimes[userIdentifier] || 0;
+    const serverTimeSinceLastVote = now - serverLastVote;
+    if (serverTimeSinceLastVote < RATE_LIMIT_MS) {
+      const remainingSeconds = Math.ceil((RATE_LIMIT_MS - serverTimeSinceLastVote) / 1000);
+      alert(`Nice try! 😏 Server says: wait ${remainingSeconds} seconds`);
+      console.warn('🚨 Rate limit enforced by server-side check');
+      return;
+    }
+    
+    // Client-side check (localStorage - for UI feedback)
+    const remainingCooldown = getRemainingCooldown(userIdentifier);
     if (remainingCooldown > 0) {
       const remainingSeconds = Math.ceil(remainingCooldown / 1000);
       alert(`Please wait ${remainingSeconds} seconds before adding another coin`);
@@ -564,6 +781,29 @@
     // Update user's last click time in localStorage (using hashed identifier)
     setUserLastClickTime(userIdentifier, now);
     
+    // Update server-side rate limit (stored in Gist - cannot be bypassed!)
+    userVoteTimes[userIdentifier] = now;
+    
+    // Detect robotic timing patterns (suspiciously regular intervals)
+    const userHistory = history.filter(h => h.addedBy === (session?.userName || 'Anonymous'));
+    if (userHistory.length >= 3) {
+      const recentEntries = userHistory.slice(-3);
+      const intervals = [];
+      for (let i = 1; i < recentEntries.length; i++) {
+        intervals.push(new Date(recentEntries[i].timestamp) - new Date(recentEntries[i-1].timestamp));
+      }
+      // Check if intervals are suspiciously similar (within 2 seconds of each other)
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const isRobotic = intervals.every(interval => Math.abs(interval - avgInterval) < 2000);
+      if (isRobotic && avgInterval < 120000) { // Regular intervals under 2 minutes
+        console.warn('%c🤖 ROBOTIC PATTERN DETECTED! User:', 'color: red; font-weight: bold;', session?.userName);
+        console.warn('%cIntervals (ms):', 'color: red;', intervals, 'Avg:', avgInterval);
+        // Flag this in the history entry
+        deviceFingerprint.roboticPattern = true;
+        deviceFingerprint.avgInterval = avgInterval;
+      }
+    }
+    
     // Track user activity to extend session
     trackUserActivity();
     
@@ -573,13 +813,24 @@
     // Get current user info
     const currentUser = session?.userName || 'Anonymous';
     
-    // Create history entry
+    // Collect device fingerprint for anti-cheat logging
+    const deviceFingerprint = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenRes: `${screen.width}x${screen.height}`,
+      cores: navigator.hardwareConcurrency || 'unknown',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    
+    // Create history entry with device info
     const historyEntry = {
       id: Date.now() + Math.random(), // Unique ID
       timestamp: new Date().toISOString(),
       member: member,
       addedBy: currentUser,
-      action: 'add_coin'
+      action: 'add_coin',
+      device: deviceFingerprint // Track device for anti-cheat
     };
     
     // Optimistically update UI
@@ -600,7 +851,8 @@
         total: count,
         members: memberCounts,
         history: history,
-        withdrawals: withdrawals
+        withdrawals: withdrawals,
+        userVoteTimes: userVoteTimes // Server-side rate limiting
       };
       
       const savedData = await storage.saveData(dataToSave);
@@ -610,6 +862,7 @@
       memberCounts = savedData.members;
       history = savedData.history || [];
       withdrawals = savedData.withdrawals || [];
+      userVoteTimes = savedData.userVoteTimes || {};
       updateDisplay();
       renderMemberStats();
       
