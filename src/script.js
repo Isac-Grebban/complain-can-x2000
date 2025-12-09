@@ -27,6 +27,7 @@
   let count = 0;
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
   let history = [];
+  let withdrawals = []; // Track withdrawal history
   let storage = null;
   let allowedEmails = [];
   const RATE_LIMIT_MS = 30000; // 30 seconds
@@ -448,6 +449,7 @@
       count = data.total || 0;
       memberCounts = data.members || Object.fromEntries(MEMBERS.map(m=>[m,0]));
       history = data.history || [];
+      withdrawals = data.withdrawals || []; // Load withdrawal history
       
       // Ensure all members exist in the data
       MEMBERS.forEach(member => {
@@ -456,7 +458,7 @@
         }
       });
       
-      console.log('Loaded coin data:', { count, memberCounts, historyEntries: history.length });
+      console.log('Loaded coin data:', { count, memberCounts, historyEntries: history.length, withdrawalsCount: withdrawals.length });
     } catch (error) {
       console.error('Failed to load coin data:', error.message);
       // Use fallback data
@@ -597,7 +599,8 @@
       const dataToSave = {
         total: count,
         members: memberCounts,
-        history: history
+        history: history,
+        withdrawals: withdrawals
       };
       
       const savedData = await storage.saveData(dataToSave);
@@ -606,6 +609,7 @@
       count = savedData.total;
       memberCounts = savedData.members;
       history = savedData.history || [];
+      withdrawals = savedData.withdrawals || [];
       updateDisplay();
       renderMemberStats();
       
@@ -829,6 +833,41 @@
   
   statsModalBackdrop?.addEventListener('click', () => {
     statsModal.hidden = true;
+  });
+
+  // Withdraw modal event listeners
+  const withdrawModal = document.getElementById('withdrawModal');
+  const withdrawBtn = document.getElementById('withdrawBtn');
+  const cancelWithdrawBtn = document.getElementById('cancelWithdraw');
+  const confirmWithdrawBtn = document.getElementById('confirmWithdraw');
+  const withdrawModalBackdrop = withdrawModal?.querySelector('.modal-backdrop');
+  
+  withdrawBtn?.addEventListener('click', openWithdrawModal);
+  
+  cancelWithdrawBtn?.addEventListener('click', () => {
+    withdrawModal.hidden = true;
+  });
+  
+  withdrawModalBackdrop?.addEventListener('click', () => {
+    withdrawModal.hidden = true;
+  });
+  
+  confirmWithdrawBtn?.addEventListener('click', performWithdraw);
+  
+  // Withdrawals history modal event listeners
+  const withdrawalsModal = document.getElementById('withdrawalsModal');
+  const withdrawalsBtn = document.getElementById('withdrawalsBtn');
+  const closeWithdrawalsModalBtn = document.getElementById('closeWithdrawalsModal');
+  const withdrawalsModalBackdrop = withdrawalsModal?.querySelector('.modal-backdrop');
+  
+  withdrawalsBtn?.addEventListener('click', openWithdrawalsViewer);
+  
+  closeWithdrawalsModalBtn?.addEventListener('click', () => {
+    withdrawalsModal.hidden = true;
+  });
+  
+  withdrawalsModalBackdrop?.addEventListener('click', () => {
+    withdrawalsModal.hidden = true;
   });
 
   // Lid lift animation
@@ -1437,6 +1476,428 @@
     ctx.setLineDash([]);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(chartX, chartY);
+    ctx.lineTo(chartX, chartY + chartHeight);
+    ctx.lineTo(chartX + chartWidth, chartY + chartHeight);
+    ctx.stroke();
+  }
+
+  // ===== WITHDRAW FUNCTIONS =====
+  
+  function openWithdrawModal() {
+    const withdrawModal = document.getElementById('withdrawModal');
+    const withdrawSummary = document.getElementById('withdrawSummary');
+    const withdrawNoteInput = document.getElementById('withdrawNote');
+    const withdrawPasswordInput = document.getElementById('withdrawPassword');
+    const withdrawPasswordError = document.getElementById('withdrawPasswordError');
+    
+    // Check if there's anything to withdraw
+    if (count === 0) {
+      alert('Nothing to withdraw! The can is empty.');
+      return;
+    }
+    
+    // Check if user is logged in
+    const session = getCurrentUserSession();
+    if (!session) {
+      alert('Please log in to withdraw funds');
+      loginModal.style.display = 'flex';
+      emailInput.focus();
+      return;
+    }
+    
+    // Clear password field and hide error
+    if (withdrawPasswordInput) {
+      withdrawPasswordInput.value = '';
+    }
+    if (withdrawPasswordError) {
+      withdrawPasswordError.hidden = true;
+    }
+    
+    const totalAmount = count * VALUE_PER_COIN;
+    
+    // Get date range from history
+    let periodStart = 'N/A';
+    let periodEnd = new Date().toLocaleDateString();
+    if (history.length > 0) {
+      const sortedHistory = [...history].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      periodStart = new Date(sortedHistory[0].timestamp).toLocaleDateString();
+    }
+    
+    // Generate leaderboard for summary
+    const sorted = Object.entries(memberCounts).sort((a, b) => b[1] - a[1]);
+    const topComplainers = sorted.filter(([, cnt]) => cnt > 0).slice(0, 3);
+    const leaderboardHtml = topComplainers.length > 0 
+      ? topComplainers.map(([name, cnt], idx) => {
+          const medals = ['🥇', '🥈', '🥉'];
+          return `${medals[idx]} ${name}: ${cnt}`;
+        }).join(' • ')
+      : 'No complaints yet';
+    
+    withdrawSummary.innerHTML = `
+      <div class="withdraw-amount">${totalAmount} SEK</div>
+      <div class="withdraw-details">
+        <strong>${count}</strong> complaint${count === 1 ? '' : 's'} • Period: ${periodStart} - ${periodEnd}<br>
+        <span style="font-size: 0.85rem; margin-top: 0.5rem; display: inline-block;">
+          ${leaderboardHtml}
+        </span>
+      </div>
+    `;
+    
+    // Clear note input
+    if (withdrawNoteInput) {
+      withdrawNoteInput.value = '';
+    }
+    
+    withdrawModal.hidden = false;
+  }
+  
+  // SHA-256 hash of the withdrawal password - UPDATE THIS WITH YOUR ACTUAL HASH
+  // To generate a hash, run in browser console: 
+  // crypto.subtle.digest('SHA-256', new TextEncoder().encode('your-password')).then(h => console.log(Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('')))
+  const WITHDRAW_PASSWORD_HASH = '257db658748423fd296b35652144228b42f6ed345c4996896c2c32f0165db49e';
+  
+  async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  
+  async function performWithdraw() {
+    const withdrawModal = document.getElementById('withdrawModal');
+    const withdrawNoteInput = document.getElementById('withdrawNote');
+    const withdrawPasswordInput = document.getElementById('withdrawPassword');
+    const withdrawPasswordError = document.getElementById('withdrawPasswordError');
+    
+    // Check if user is logged in
+    const session = getCurrentUserSession();
+    if (!session) {
+      alert('Please log in to withdraw funds');
+      withdrawModal.hidden = true;
+      return;
+    }
+    
+    // Validate password
+    const password = withdrawPasswordInput?.value || '';
+    if (!password) {
+      if (withdrawPasswordError) {
+        withdrawPasswordError.textContent = 'Password is required';
+        withdrawPasswordError.hidden = false;
+      }
+      withdrawPasswordInput?.focus();
+      return;
+    }
+    
+    const passwordHash = await hashPassword(password);
+    if (passwordHash !== WITHDRAW_PASSWORD_HASH) {
+      if (withdrawPasswordError) {
+        withdrawPasswordError.textContent = 'Incorrect password';
+        withdrawPasswordError.hidden = false;
+      }
+      withdrawPasswordInput?.select();
+      return;
+    }
+    
+    // Hide error on success
+    if (withdrawPasswordError) {
+      withdrawPasswordError.hidden = true;
+    }
+    
+    if (!storage) {
+      alert('Storage not available. Please check your configuration.');
+      return;
+    }
+    
+    // Create withdrawal record with period data
+    const totalAmount = count * VALUE_PER_COIN;
+    
+    // Get date range from history
+    let periodStart = new Date().toISOString();
+    const periodEnd = new Date().toISOString();
+    if (history.length > 0) {
+      const sortedHistory = [...history].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      periodStart = sortedHistory[0].timestamp;
+    }
+    
+    // Generate period statistics
+    const periodStats = generateStatsData();
+    
+    const withdrawalRecord = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date().toISOString(),
+      withdrawnBy: session.userName,
+      amount: totalAmount,
+      coinCount: count,
+      note: withdrawNoteInput?.value.trim() || '',
+      period: {
+        startDate: periodStart,
+        endDate: periodEnd
+      },
+      memberCounts: { ...memberCounts },
+      history: [...history],
+      statistics: periodStats
+    };
+    
+    // Add to withdrawals array
+    withdrawals.unshift(withdrawalRecord);
+    
+    // Reset current period data
+    count = 0;
+    memberCounts = Object.fromEntries(MEMBERS.map(m => [m, 0]));
+    history = [];
+    
+    // Save to storage
+    try {
+      const dataToSave = {
+        total: count,
+        members: memberCounts,
+        history: history,
+        withdrawals: withdrawals
+      };
+      
+      const savedData = await storage.saveData(dataToSave);
+      
+      // Update with the actual saved data
+      count = savedData.total;
+      memberCounts = savedData.members;
+      history = savedData.history || [];
+      withdrawals = savedData.withdrawals || [];
+      
+      // Update UI
+      updateDisplay();
+      renderCoins(count);
+      renderMemberStats();
+      toggleReset();
+      
+      // Close modal and show success message
+      withdrawModal.hidden = true;
+      
+      // Show a nice confirmation
+      setTimeout(() => {
+        alert(`Successfully withdrew ${totalAmount} SEK! 🎉\nThe can has been reset for a new period.`);
+      }, 100);
+      
+      console.log('Withdrawal completed:', withdrawalRecord);
+    } catch (error) {
+      console.error('Failed to save withdrawal:', error.message);
+      
+      // Rollback
+      count = withdrawalRecord.coinCount;
+      memberCounts = withdrawalRecord.memberCounts;
+      history = withdrawalRecord.history;
+      withdrawals.shift(); // Remove the withdrawal we just added
+      
+      alert('Failed to process withdrawal: ' + error.message);
+    }
+  }
+  
+  function openWithdrawalsViewer() {
+    const withdrawalsModal = document.getElementById('withdrawalsModal');
+    const withdrawalsContent = document.getElementById('withdrawalsContent');
+    
+    if (withdrawals.length === 0) {
+      withdrawalsContent.innerHTML = `
+        <div class="withdrawals-empty">
+          <p>No withdrawals yet.</p>
+          <p>When you withdraw funds, the history will be saved here!</p>
+        </div>
+      `;
+      withdrawalsModal.hidden = false;
+      return;
+    }
+    
+    // Calculate total withdrawn
+    const totalWithdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+    const totalCoins = withdrawals.reduce((sum, w) => sum + w.coinCount, 0);
+    
+    let html = `
+      <div class="withdrawals-total">
+        <div class="withdrawals-total-amount">${totalWithdrawn} SEK</div>
+        <div class="withdrawals-total-label">
+          Total withdrawn across ${withdrawals.length} withdrawal${withdrawals.length === 1 ? '' : 's'} (${totalCoins} coins)
+        </div>
+      </div>
+    `;
+    
+    // List each withdrawal
+    withdrawals.forEach((withdrawal, index) => {
+      const date = new Date(withdrawal.timestamp);
+      const periodStart = new Date(withdrawal.period.startDate).toLocaleDateString();
+      const periodEnd = new Date(withdrawal.period.endDate).toLocaleDateString();
+      
+      // Generate leaderboard
+      const sorted = Object.entries(withdrawal.memberCounts).sort((a, b) => b[1] - a[1]);
+      const rankForCount = new Map();
+      for (const [, cnt] of sorted) {
+        if (cnt === 0) break;
+        if (!rankForCount.has(cnt) && rankForCount.size < 3) {
+          rankForCount.set(cnt, rankForCount.size + 1);
+        }
+      }
+      
+      const leaderboardHtml = sorted
+        .filter(([, cnt]) => cnt > 0)
+        .map(([name, cnt]) => {
+          const rank = rankForCount.get(cnt) || 0;
+          let rankClass = '';
+          if (rank === 1) rankClass = 'gold';
+          else if (rank === 2) rankClass = 'silver';
+          else if (rank === 3) rankClass = 'bronze';
+          return `<span class="withdrawal-member-stat ${rankClass}">${name}: ${cnt}</span>`;
+        }).join('');
+      
+      html += `
+        <div class="withdrawal-item" data-index="${index}">
+          <div class="withdrawal-header" onclick="this.classList.toggle('expanded'); this.nextElementSibling.classList.toggle('expanded');">
+            <div class="withdrawal-header-left">
+              <div class="withdrawal-date">${date.toLocaleDateString()} at ${date.toLocaleTimeString()}</div>
+              ${withdrawal.note ? `<div class="withdrawal-note">"${withdrawal.note}"</div>` : ''}
+            </div>
+            <div class="withdrawal-header-right">
+              <div class="withdrawal-amount-badge">${withdrawal.amount} SEK</div>
+              <div class="withdrawal-coins-count">${withdrawal.coinCount} coin${withdrawal.coinCount === 1 ? '' : 's'}</div>
+            </div>
+            <span class="expand-indicator">▼</span>
+          </div>
+          <div class="withdrawal-details-panel">
+            <div class="withdrawal-section">
+              <div class="withdrawal-section-title">📅 Period</div>
+              <div class="withdrawal-period">${periodStart} - ${periodEnd}</div>
+            </div>
+            <div class="withdrawal-section">
+              <div class="withdrawal-section-title">🏆 Leaderboard</div>
+              <div class="withdrawal-leaderboard">${leaderboardHtml || '<span style="color: var(--text-secondary);">No complaints in this period</span>'}</div>
+            </div>
+            <div class="withdrawal-section">
+              <div class="withdrawal-section-title">👤 Withdrawn by</div>
+              <div class="withdrawal-period">${withdrawal.withdrawnBy}</div>
+            </div>
+            <div class="withdrawal-section withdrawal-expandable">
+              <div class="withdrawal-section-header" onclick="this.parentElement.classList.toggle('section-expanded'); if(this.parentElement.classList.contains('section-expanded')) { drawWithdrawalChartById(${index}); }">
+                <div class="withdrawal-section-title">📊 Analytics</div>
+                <span class="section-expand-indicator">▶</span>
+              </div>
+              <div class="withdrawal-section-content">
+                <div class="withdrawal-chart-container">
+                  <canvas id="withdrawalChart-${index}" width="400" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="withdrawal-section withdrawal-expandable">
+              <div class="withdrawal-section-header" onclick="this.parentElement.classList.toggle('section-expanded');">
+                <div class="withdrawal-section-title">📜 History (${withdrawal.history?.length || 0} entries)</div>
+                <span class="section-expand-indicator">▶</span>
+              </div>
+              <div class="withdrawal-section-content">
+                <div class="withdrawal-history-list">
+                  ${generateWithdrawalHistoryHtml(withdrawal.history || [])}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    withdrawalsContent.innerHTML = html;
+    withdrawalsModal.hidden = false;
+  }
+  
+  // Global function to draw chart when section is expanded
+  window.drawWithdrawalChartById = function(index) {
+    if (withdrawals[index]) {
+      drawWithdrawalChart(withdrawals[index], index);
+    }
+  };
+  
+  function generateWithdrawalHistoryHtml(historyEntries) {
+    if (!historyEntries || historyEntries.length === 0) {
+      return '<div class="withdrawal-history-empty">No history entries</div>';
+    }
+    
+    // Show last 10 entries, with option to expand
+    const displayEntries = historyEntries.slice(0, 10);
+    const hasMore = historyEntries.length > 10;
+    
+    let html = displayEntries.map(entry => {
+      const date = new Date(entry.timestamp);
+      const timeAgo = getTimeAgo(date);
+      return `
+        <div class="withdrawal-history-item">
+          <span class="withdrawal-history-action">🪙 <strong>${entry.addedBy}</strong> → <strong>${entry.member}</strong></span>
+          <span class="withdrawal-history-time">${timeAgo}</span>
+        </div>
+      `;
+    }).join('');
+    
+    if (hasMore) {
+      html += `<div class="withdrawal-history-more">...and ${historyEntries.length - 10} more entries</div>`;
+    }
+    
+    return html;
+  }
+  
+  function drawWithdrawalChart(withdrawal, index) {
+    const canvas = document.getElementById(`withdrawalChart-${index}`);
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const memberCounts = withdrawal.memberCounts || {};
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const members = Object.keys(memberCounts);
+    const maxValue = Math.max(...Object.values(memberCounts), 1);
+    
+    // Chart dimensions
+    const chartWidth = canvas.width - 80;
+    const chartHeight = canvas.height - 60;
+    const chartX = 50;
+    const chartY = 20;
+    const barWidth = chartWidth / (members.length * 2 + 1);
+    
+    // Draw bars
+    members.forEach((member, i) => {
+      const count = memberCounts[member];
+      const barHeight = (count / maxValue) * chartHeight;
+      const x = chartX + (i * 2 + 1) * barWidth;
+      const y = chartY + chartHeight - barHeight;
+      
+      // Bar color based on rank
+      const sorted = Object.entries(memberCounts).sort((a, b) => b[1] - a[1]);
+      const rank = sorted.findIndex(([m]) => m === member);
+      
+      if (rank === 0 && count > 0) ctx.fillStyle = '#f59e0b'; // Gold
+      else if (rank === 1 && count > 0) ctx.fillStyle = '#9ca3af'; // Silver
+      else if (rank === 2 && count > 0) ctx.fillStyle = '#d97706'; // Bronze
+      else ctx.fillStyle = '#2563eb'; // Default blue
+      
+      ctx.fillRect(x, y, barWidth * 0.8, barHeight);
+      
+      // Member name
+      ctx.fillStyle = '#a0a0a0';
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(member.slice(0, 6), x + barWidth * 0.4, chartY + chartHeight + 15);
+      
+      // Value on bar
+      if (barHeight > 15) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(count.toString(), x + barWidth * 0.4, y + 12);
+      }
+    });
+    
+    // Draw Y-axis
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(chartX, chartY);
     ctx.lineTo(chartX, chartY + chartHeight);

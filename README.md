@@ -15,6 +15,9 @@ A fun team application to collect "complaints" and turn them into team treats! E
 - 🪙 **Coin Collection**: Add coins for team members who complain
 - 💰 **Automatic Calculation**: Converts complaints to SEK for treat funding  
 - 🏆 **Leaderboard**: See who's contributing most to the treat fund
+- 🏦 **Withdraw Funds**: Cash out the can and archive the period's stats
+- 📊 **Statistics & History**: View complaint history and analytics
+- 💰 **Withdrawal History**: Browse past withdrawals with archived leaderboards
 - 🔐 **Email Authentication**: Authorized team members only
 - 🎵 **Sound Effects**: Satisfying coin drop sounds
 - 📱 **Responsive Design**: Works on all devices

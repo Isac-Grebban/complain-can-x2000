@@ -46,6 +46,15 @@ localStorage.removeItem('complaincan_data');
 location.reload();
 ```
 
+### Withdrawal Feature
+The app includes a "Withdraw Funds" feature that:
+- Archives the current period's stats, leaderboard, and history
+- Resets the can to zero for a new collection period
+- Requires a password (SHA-256 hashed) to confirm withdrawal
+- All past withdrawals can be viewed in the "Withdrawals" history
+
+**Note**: The withdrawal password hash is configured in `src/script.js` - look for `WITHDRAW_PASSWORD_HASH`.
+
 ### Debug Information
 The console will show detailed logs about data loading/saving:
 - 📱 localStorage operations

@@ -58,8 +58,12 @@
   </main>
   <footer class="app-footer">
     <p>Complain more to get more to the beer fund!</p>
-    <button id="historyBtn" class="history-btn" type="button">📜 View History</button>
-    <button id="statsBtn" class="history-btn" type="button">📊 View Stats</button>
+    <div class="footer-buttons">
+      <button id="historyBtn" class="history-btn" type="button">📜 View History</button>
+      <button id="statsBtn" class="history-btn" type="button">📊 View Stats</button>
+      <button id="withdrawalsBtn" class="history-btn" type="button">💰 Withdrawals</button>
+    </div>
+    <button id="withdrawBtn" class="withdraw-btn" type="button">🏦 Withdraw Funds</button>
   </footer>
   
   <!-- Login screen -->
@@ -124,6 +128,48 @@
         <div class="stats-legend" id="statsLegend"></div>
       </div>
       <button id="closeStatsModal" class="modal-close" type="button">Close</button>
+    </div>
+  </div>
+  
+  <!-- Withdraw confirmation modal -->
+  <div id="withdrawModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content withdraw-modal-content">
+      <div class="modal-emoji">🏦</div>
+      <h2 class="modal-title">Withdraw Funds</h2>
+      <div class="withdraw-summary" id="withdrawSummary">
+        <p class="modal-message">Loading...</p>
+      </div>
+      <div class="withdraw-form">
+        <label for="withdrawNote" class="withdraw-label">Note (optional):</label>
+        <input type="text" id="withdrawNote" class="withdraw-input" placeholder="e.g., Team dinner, Beer fund payout..." maxlength="100">
+      </div>
+      <div class="withdraw-form">
+        <label for="withdrawPassword" class="withdraw-label">Password (required):</label>
+        <input type="password" id="withdrawPassword" class="withdraw-input" placeholder="Enter withdrawal password" autocomplete="off">
+        <div id="withdrawPasswordError" class="withdraw-error" hidden>Incorrect password</div>
+      </div>
+      <div class="withdraw-warning">
+        <p>⚠️ This will reset the can, leaderboard, history and analytics for the current period.</p>
+        <p>The data will be archived in the withdrawals history.</p>
+      </div>
+      <div class="withdraw-actions">
+        <button id="cancelWithdraw" class="modal-close secondary" type="button">Cancel</button>
+        <button id="confirmWithdraw" class="modal-close danger" type="button">Confirm Withdrawal</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Withdrawals history modal -->
+  <div id="withdrawalsModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content withdrawals-modal-content">
+      <div class="modal-emoji">💰</div>
+      <h2 class="modal-title">Withdrawal History</h2>
+      <div class="withdrawals-content" id="withdrawalsContent">
+        <p class="modal-message">Loading withdrawals...</p>
+      </div>
+      <button id="closeWithdrawalsModal" class="modal-close" type="button">Close</button>
     </div>
   </div>
   
