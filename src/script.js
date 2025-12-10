@@ -224,6 +224,11 @@
   let allowedEmails = [];
   const RATE_LIMIT_MS = 60000; // 60 seconds - increased to prevent automation
   
+  // Blocked device fingerprints (for cheaters)
+  const BLOCKED_DEVICES = [
+    { platform: 'MacIntel', language: 'en-US', screenRes: '2560x1440', cores: 5 }
+  ];
+  
   // User-specific cooldown functions using localStorage (now with hashed identifiers)
   function getUserCooldownKey(userIdentifier) {
     return `cooldown_${userIdentifier}`;
@@ -750,6 +755,42 @@
       alert('🚫 You have been banned for suspicious activity. Contact an administrator.');
       console.warn('🚨 Banned user attempted to add coin:', userName);
       return;
+    }
+    
+    // Check if device is blocked (fingerprint matching)
+    const currentDevice = {
+      platform: navigator.platform,
+      language: navigator.language,
+      screenRes: `${screen.width}x${screen.height}`,
+      cores: navigator.hardwareConcurrency
+    };
+    
+    const isDeviceBlocked = BLOCKED_DEVICES.some(blocked => 
+      blocked.platform === currentDevice.platform &&
+      blocked.language === currentDevice.language &&
+      blocked.screenRes === currentDevice.screenRes &&
+      blocked.cores === currentDevice.cores
+    );
+    
+    if (isDeviceBlocked) {
+      // 😈 Shadow ban: Make them THINK it's working, but only update localStorage
+      // They'll see the coin animation and UI update, but it won't save to server
+      // On page refresh, everything resets to the real data
+      
+      setUserLastClickTime(userIdentifier, Date.now());
+      disableButtons();
+      
+      // Fake the UI update (local only)
+      count++;
+      memberCounts[member] = (memberCounts[member] || 0) + 1;
+      updateDisplay();
+      renderMemberStats();
+      liftLid();
+      addCoinVisual(member);
+      playCoinSound();
+      toggleReset();
+      
+      return; // Don't actually save to server!
     }
     
     // User-specific rate limiting - check BOTH localStorage AND server-side
