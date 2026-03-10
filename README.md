@@ -1,14 +1,14 @@
-# Complain Can 🪙
+# Complain Can
 
-A fun team application to collect "complaints" and turn them into team treats! Every complaint adds a coin to the can, building up funds for the next team beer or coffee run.
+A team app for collecting complaints and turning them into the next shared treat fund.
 
-##  Quick Start
+## Quick Start
 
-**Deploy to GitHub Pages** (no server required):
-1. **[� Follow Quick-Start Guide](./docs/QUICK-START.md)** (~10 minutes)
-2. **[� Local Development](./docs/LOCAL-DEVELOPMENT.md)** (instant setup)
+The application now runs through a small proxy server so authentication and persistence stay off the client.
 
-**Why GitHub Pages?** Uses GitHub Gists as backend storage - no server maintenance needed!
+1. Run `./dev-server.sh`
+2. Open `http://localhost:3000/index-dev.html`
+3. Copy `proxy-server/.env.example` to `proxy-server/.env` when you are ready to enable GitHub OAuth and GitHub Gist storage
 
 ## ✨ Features
 
@@ -18,28 +18,24 @@ A fun team application to collect "complaints" and turn them into team treats! E
 - 🏦 **Withdraw Funds**: Cash out the can and archive the period's stats
 - 📊 **Statistics & History**: View complaint history and analytics
 - 💰 **Withdrawal History**: Browse past withdrawals with archived leaderboards
-- 🔐 **Email Authentication**: Authorized team members only
+- 🔐 **GitHub Authentication**: Authorized GitHub users only
 - 🎵 **Sound Effects**: Satisfying coin drop sounds
 - 📱 **Responsive Design**: Works on all devices
 
-## 🔧 Technical Details
+## Technical Details
 
-- **Frontend**: Pure HTML, CSS, JavaScript (no build process)
-- **Backend**: GitHub Gists API for data persistence
-- **Authentication**: Client-side email validation
-- **Deployment**: GitHub Pages with GitHub Actions
+- **Frontend**: Pure HTML, CSS, JavaScript
+- **Backend**: Express proxy server
+- **Authentication**: GitHub OAuth handled server-side
+- **Persistence**: Local JSON in development or GitHub Gist in shared environments
 
-## 💻 Local Development
-
-No GitHub setup required for local testing:
+## Local Development
 
 ```bash
 ./dev-server.sh
-# Open: http://localhost:8080/index-dev.html
 ```
 
-**Development mode** uses localStorage - perfect for immediate testing!  
-**Production mode** requires GitHub Actions deployment.
+By default the proxy starts in `AUTH_MODE=development` and `STORAGE_MODE=local`, so you can work without GitHub setup. When you add `proxy-server/.env`, the same server can switch to GitHub OAuth and shared Gist persistence.
 
 📖 **[Complete Local Development Guide →](./docs/LOCAL-DEVELOPMENT.md)**
 
@@ -47,17 +43,17 @@ No GitHub setup required for local testing:
 
 | Guide | Purpose |
 |-------|---------|
-| **[📋 QUICK-START.md](./docs/QUICK-START.md)** | **Step-by-step deployment (~10 min)** |
+| **[📋 QUICK-START.md](./docs/QUICK-START.md)** | **Deployment and environment setup** |
 | [📖 SETUP.md](./docs/SETUP.md) | Detailed setup with troubleshooting |
 | [💻 LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Local development guide |
 
-## 🏛️ Legacy Server Version
+## Access Control
 
-The original Express.js server version is archived in [`legacy-server/`](./legacy-server/) for reference. The GitHub Pages version is recommended for new deployments.
+Set one or more of these environment variables in `proxy-server/.env` to restrict access:
 
-## 🔐 Adding Team Members
-
-Edit `allowed-emails.json` to add authorized email addresses (emails are hashed for security).
+- `ALLOWED_GITHUB_USERS`
+- `ALLOWED_GITHUB_ORGS`
+- `ALLOWED_GITHUB_EMAILS`
 
 ## License
 
