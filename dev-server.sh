@@ -1,47 +1,27 @@
 #!/bin/bash
-# Local development helper script
+set -euo pipefail
 
-echo "🚀 Starting Complain Can in development mode..."
-echo ""
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROXY_DIR="$ROOT_DIR/proxy-server"
 
-# Check if Python 3 is available
-if command -v python3 &> /dev/null; then
-    echo "📱 Using Python 3 HTTP server"
-    echo "🌐 Development version: http://localhost:8080/index-dev.html"
-    echo "🌐 Production version: http://localhost:8080/index.html"
-    echo ""
-    echo "📁 Clean project structure:"
-    echo "  - src/          Source code (JS files)"
-    echo "  - assets/       Static assets (CSS, images, sounds)"
-    echo "  - docs/         Documentation"
-    echo "  - legacy-server/ Original server (archived)"
-    echo ""
-    echo "Press Ctrl+C to stop the server"
-    echo ""
-    python3 -m http.server 8080
-elif command -v python &> /dev/null; then
-    echo "📱 Using Python 2 HTTP server"
-    echo "🌐 Development version: http://localhost:8080/index-dev.html"
-    echo "🌐 Production version: http://localhost:8080/index.html"
-    echo ""
-    echo "Press Ctrl+C to stop the server"
-    echo ""
-    python -m SimpleHTTPServer 8080
-elif command -v npx &> /dev/null; then
-    echo "📱 Using Node.js serve"
-    echo "🌐 Development version: http://localhost:8080/index-dev.html"
-    echo "🌐 Production version: http://localhost:8080/index.html"
-    echo ""
-    echo "Press Ctrl+C to stop the server"
-    echo ""
-    npx serve . -p 8080
-else
-    echo "❌ No suitable HTTP server found!"
-    echo ""
-    echo "Please install one of the following:"
-    echo "  - Python 3: python3 -m http.server 8080"
-    echo "  - Python 2: python -m SimpleHTTPServer 8080"
-    echo "  - Node.js: npx serve . -p 8080"
-    echo "  - PHP: php -S localhost:8080"
+if ! command -v npm >/dev/null 2>&1; then
+    echo "❌ npm is required to run the proxy server."
     exit 1
 fi
+
+if [ ! -d "$PROXY_DIR/node_modules" ]; then
+    echo "📦 Installing proxy dependencies..."
+    npm --prefix "$PROXY_DIR" install
+fi
+
+if [ ! -f "$PROXY_DIR/.env" ]; then
+    echo "ℹ️  No proxy-server/.env found. Starting with local development defaults."
+    echo "   Copy proxy-server/.env.example to proxy-server/.env to enable GitHub OAuth and Gist storage."
+fi
+
+echo "🚀 Starting Complain Can proxy server..."
+echo "🌐 App: http://localhost:3000/index-dev.html"
+echo "🌐 Main entry: http://localhost:3000/"
+echo ""
+
+AUTH_MODE="${AUTH_MODE:-development}" STORAGE_MODE="${STORAGE_MODE:-local}" npm --prefix "$PROXY_DIR" start

@@ -33,3 +33,7 @@ logs/
 .env
 .env.local
 .env.production
+
+# Proxy server runtime artifacts
+proxy-server/node_modules/
+proxy-server/data/

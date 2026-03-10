@@ -7,16 +7,14 @@
   const countValueEl = document.getElementById('countValue');
   const pluralSuffixEl = document.getElementById('pluralSuffix');
   const container = document.getElementById('coinContainer');
-  // Session configuration
-  const SESSION_DURATION_DAYS = 14; // How long to keep users logged in
-  const SESSION_KEY_PREFIX = 'complainCan_';
 
   const memberStatsEl = document.getElementById('memberStats');
   const userInfoEl = document.getElementById('userInfo');
   const loginModal = document.getElementById('loginModal');
-  const emailInput = document.getElementById('emailInput');
   const loginBtn = document.getElementById('loginBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const loginSubtitle = document.getElementById('loginSubtitle');
+  const loginFooterNote = document.getElementById('loginFooterNote');
   const cooldownLoader = document.getElementById('cooldownLoader');
   const cooldownSeconds = document.getElementById('cooldownSeconds');
   const jar = document.querySelector('.jar');
@@ -29,7 +27,8 @@
   let history = [];
   let withdrawals = []; // Track withdrawal history
   let storage = null;
-  let allowedEmails = [];
+  let currentSession = null;
+  let bootstrap = null;
   const RATE_LIMIT_MS = 30000; // 30 seconds
   
   // User-specific cooldown functions using localStorage (now with hashed identifiers)
@@ -40,7 +39,7 @@
   function getUserLastClickTime(userIdentifier) {
     if (!userIdentifier) return 0;
     const stored = localStorage.getItem(getUserCooldownKey(userIdentifier));
-    return stored ? parseInt(stored, 10) : 0;
+    return stored ? Number.parseInt(stored, 10) : 0;
   }
   
   function setUserLastClickTime(userIdentifier, timestamp) {
@@ -58,295 +57,145 @@
   
   // Initialize storage
   function initStorage() {
-    if (typeof window.CONFIG === 'undefined' || typeof window.GistStorage === 'undefined') {
-      console.error('Missing CONFIG or GistStorage. Make sure config.js and gist-storage.js are loaded.');
+    if (globalThis.ApiStorage === undefined) {
+      console.error('Missing ApiStorage. Make sure api-storage.js is loaded.');
       return null;
     }
-    return new window.GistStorage(window.CONFIG);
+    return new globalThis.ApiStorage();
   }
-
-  let allowedEmailHashes = [];
 
   // Session management functions
-  function saveUserSession(userName, userIdentifier, userEmailHash) {
-    const sessionData = {
-      userName,
-      userIdentifier,
-      userEmailHash,
-      expiresAt: Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000),
-      createdAt: Date.now()
-    };
-    
-    localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(sessionData));
-    console.log('💾 Session saved, expires in', SESSION_DURATION_DAYS, 'days');
-  }
-
-  function loadUserSession() {
-    try {
-      const sessionData = localStorage.getItem(SESSION_KEY_PREFIX + 'session');
-      if (!sessionData) return null;
-
-      const session = JSON.parse(sessionData);
-      
-      // Check if session has expired
-      if (Date.now() > session.expiresAt) {
-        console.log('⏰ Session expired, clearing...');
-        clearUserSession();
-        return null;
-      }
-
-      console.log('✅ Valid session found, expires:', new Date(session.expiresAt).toLocaleString());
-      return session;
-    } catch (error) {
-      console.error('❌ Error loading session:', error);
-      clearUserSession();
+  function normalizeSession(sessionPayload) {
+    if (!sessionPayload?.authenticated || !sessionPayload.user) {
       return null;
     }
+
+    return {
+      userName: sessionPayload.user.displayName || sessionPayload.user.login,
+      userIdentifier: sessionPayload.user.login,
+      userLogin: sessionPayload.user.login,
+      authProvider: sessionPayload.user.provider,
+      avatarUrl: sessionPayload.user.avatarUrl || ''
+    };
+  }
+
+  async function loadBootstrap() {
+    try {
+      bootstrap = await storage.getBootstrap();
+      updateLoginCopy();
+    } catch (error) {
+      console.error('❌ Failed to load bootstrap config:', error.message);
+      bootstrap = { authMode: 'github', loginPath: '/api/auth/login' };
+    }
+
+    return bootstrap;
   }
 
   function clearUserSession() {
-    localStorage.removeItem(SESSION_KEY_PREFIX + 'session');
+    currentSession = null;
     console.log('🗑️ Session cleared');
   }
 
-  function extendUserSession() {
-    const session = loadUserSession();
-    if (session) {
-      session.expiresAt = Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
-      localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(session));
-      console.log('⚡ Session extended');
+  async function refreshUserSession() {
+    try {
+      const sessionPayload = await storage.getSession();
+      currentSession = normalizeSession(sessionPayload);
+    } catch (error) {
+      console.error('❌ Failed to load session:', error.message);
+      currentSession = null;
     }
+
+    return currentSession;
   }
 
   function getCurrentUserSession() {
-    return loadUserSession();
+    return currentSession;
   }
 
   function trackUserActivity() {
-    // Extend session on user activity (like adding coins)
-    const session = getCurrentUserSession();
-    if (session) {
-      extendUserSession();
+    return currentSession;
+  }
+
+  function updateLoginCopy() {
+    if (!loginBtn) {
+      return;
+    }
+
+    const isDevelopmentAuth = bootstrap?.authMode === 'development';
+    loginBtn.textContent = isDevelopmentAuth ? 'Continue In Local Mode' : 'Continue With GitHub';
+
+    if (loginSubtitle) {
+      loginSubtitle.textContent = isDevelopmentAuth
+        ? 'Local development mode is enabled for this server.'
+        : 'Sign in with GitHub to access the complaint can.';
+    }
+
+    if (loginFooterNote) {
+      loginFooterNote.textContent = isDevelopmentAuth
+        ? 'Authentication is mocked locally until GitHub OAuth is configured.'
+        : 'Authentication is verified server-side with your GitHub account.';
     }
   }
 
-  // Load allowed email hashes (now using SHA256 for privacy)
-  async function loadAllowedEmails() {
-    console.log('📥 Loading allowed emails...');
-    console.log('🌐 Current URL:', window.location.href);
-    console.log('📂 Fetching from:', window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/email-hashes.json');
-    
-    try {
-      // Use relative path to work with GitHub Pages subdirectory deployment
-      const res = await fetch('./email-hashes.json');
-      console.log('📡 Fetch response status:', res.status);
-      console.log('📡 Fetch response headers:', [...res.headers.entries()]);
-      
-      if (res.ok) {
-        const text = await res.text();
-        console.log('📄 Raw response text:', text);
-        console.log('📄 Response length:', text.length);
-        
-        if (!text || text.trim() === '') {
-          console.error('❌ Empty response from email-hashes.json');
-          allowedEmails = [];
-          return;
-        }
-        
-        const data = JSON.parse(text);
-        console.log('📄 Parsed email config:', data);
-        console.log('📄 Config keys:', Object.keys(data));
-        
-        // Support both legacy format (plain emails) and new format (hashes)
-        if (data.allowedEmailHashes && data.allowedEmailHashes.length > 0) {
-          // New secure format with hashes
-          allowedEmails = data.allowedEmailHashes;
-          console.log('✅ Loaded secure email hashes for validation, count:', allowedEmails.length);
-          console.log('🔑 First few hashes:', allowedEmails.slice(0, 2));
-        } else if (data.allowedEmails && data.allowedEmails.length > 0) {
-          // Legacy format - convert plain emails to hashes on-the-fly
-          console.warn('⚠️  Found legacy plain-text emails. Converting to hashes...');
-          allowedEmails = [];
-          
-          // Convert legacy emails to hashes if EmailHasher is available
-          if (window.emailHasher) {
-            for (const email of data.allowedEmails) {
-              try {
-                const hash = await window.emailHasher.hashEmail(email);
-                allowedEmails.push(hash);
-              } catch (error) {
-                console.error('Failed to hash email:', email, error);
-              }
-            }
-            console.log('✅ Converted legacy emails to hashes, count:', allowedEmails.length);
-          } else {
-            // Fallback: use plain emails directly (less secure but works)
-            console.warn('⚠️  EmailHasher not available, using plain emails (INSECURE!)');
-            allowedEmails = data.allowedEmails;
-          }
-        } else {
-          console.warn('⚠️  No allowedEmailHashes or allowedEmails found in config');
-          console.warn('📄 Config structure:', Object.keys(data));
-          allowedEmails = [];
-        }
-      } else {
-        console.error('❌ Failed to fetch email-hashes.json, status:', res.status);
-        allowedEmails = [];
-      }
-    } catch (error) {
-      console.error('❌ Failed to load allowed emails:', error.message);
-      allowedEmails = [];
-    }
-    
-    console.log('📋 Final allowedEmails array:', allowedEmails);
+  function showLoginModal() {
+    loginModal.style.display = 'flex';
+    loginBtn?.focus();
   }
 
-  // User name handling is now done by EmailHasher class
+  function hideLoginModal() {
+    loginModal.style.display = 'none';
+  }
 
   function initializeUserName() {
-    // Try to load persistent session first
-    const session = loadUserSession();
+    const session = getCurrentUserSession();
     
     if (session) {
-      // Already logged in with valid persistent session
       console.log('🔐 Restoring user session for:', session.userName);
       updateUserDisplay(session.userName);
-      loginModal.style.display = 'none';
+      hideLoginModal();
       document.body.classList.add('app-loaded');
       logoutBtn.hidden = false;
-      
-      // Extend session on successful restore (activity-based renewal)
-      extendUserSession();
     } else {
-      // No valid session, show login modal
       console.log('🔑 No valid session found, showing login');
-      loginModal.style.display = 'flex';
-      emailInput.focus();
+      showLoginModal();
       logoutBtn.hidden = true;
     }
   }
 
   async function handleLogin() {
-    const email = emailInput.value.trim();
-    
-    console.log('🔐 Login attempt for email:', email);
-    
-    if (!email) {
-      alert('Please enter an email address');
+    const loginPath = bootstrap?.loginPath || '/api/auth/login';
+    const nextPath = `${globalThis.location.pathname}${globalThis.location.search}${globalThis.location.hash}`;
+    console.log('🔐 Redirecting to server-side auth flow');
+
+    if (!loginPath) {
+      alert('Authentication is not configured on this server.');
       return;
     }
-    
-    console.log('📋 Allowed emails/hashes count:', allowedEmails.length);
-    console.log('📧 Checking email:', email);
-    
-    // Check if we have any allowed emails/hashes
-    if (allowedEmails.length === 0) {
-      console.error('❌ No allowed emails configured');
-      alert('No authorized emails configured. Please contact an administrator.');
-      return;
-    }
-    
-    let isValid = false;
-    let userHash = null;
-    
-    // Try different validation methods
-    if (window.emailHasher) {
-      console.log('✅ EmailHasher available, using secure validation');
-      
-      try {
-        // Method 1: New secure hash validation
-        const validation = await window.emailHasher.validateAndHashEmail(email, allowedEmails);
-        
-        if (validation.isValid) {
-          console.log('✅ Hash validation successful');
-          isValid = true;
-          userHash = validation.hash;
-        } else {
-          console.log('⚠️  Hash validation failed, trying legacy validation...');
-          
-          // Method 2: Legacy plain email validation (fallback)
-          const normalizedEmail = email.toLowerCase().trim();
-          if (allowedEmails.includes(normalizedEmail)) {
-            console.log('✅ Legacy validation successful');
-            isValid = true;
-            userHash = await window.emailHasher.hashEmail(email);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Validation error:', error);
-      }
-    } else {
-      console.warn('⚠️  EmailHasher not available, using basic validation');
-      // Method 3: Basic validation without hashing (least secure)
-      const normalizedEmail = email.toLowerCase().trim();
-      isValid = allowedEmails.includes(normalizedEmail);
-    }
-    
-    if (!isValid) {
-      console.warn('❌ All validation methods failed');
-      alert('Access denied: Email not authorized for this application');
-      return;
-    }
-    
-    console.log('✅ Email validation successful');
-    
-    // Extract display name and create identifiers
-    let userName, userIdentifier;
-    
-    if (window.emailHasher) {
-      userName = window.emailHasher.extractDisplayNameFromEmail(email);
-      userIdentifier = userHash ? window.emailHasher.createUserIdentifier(userHash) : email.split('@')[0];
-    } else {
-      // Fallback name extraction
-      userName = email.split('@')[0].split('.')[0];
-      userName = userName.charAt(0).toUpperCase() + userName.slice(1);
-      userIdentifier = email;
-    }
-    
-    if (userName) {
-      // Save persistent session (replaces sessionStorage)
-      saveUserSession(userName, userIdentifier, userHash);
-      
-      updateUserDisplay(userName);
-      loginModal.style.display = 'none';
-      document.body.classList.add('app-loaded');
-      logoutBtn.hidden = false;
-      
-      // Check for existing cooldown after login
-      checkExistingCooldown();
-    }
+
+    globalThis.location.assign(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
   }
 
-  function handleLogout() {
-    // Clear persistent session
+  async function handleLogout() {
+    try {
+      await storage.logout();
+    } catch (error) {
+      console.error('Failed to log out cleanly:', error.message);
+    }
+
     clearUserSession();
     
-    // Reset UI
     updateUserDisplay('Guest');
     document.body.classList.remove('app-loaded');
     logoutBtn.hidden = true;
     
-    // Enable buttons since cooldown is user-specific
     enableButtons();
     
-    // Show login modal
-    emailInput.value = '';
-    loginModal.style.display = 'flex';
-    emailInput.focus();
+    showLoginModal();
   }
 
   // Login button click
   if (loginBtn) {
     loginBtn.addEventListener('click', handleLogin);
-  }
-
-  // Enter key in email input
-  if (emailInput) {
-    emailInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        handleLogin();
-      }
-    });
   }
 
   // Logout button click
@@ -363,10 +212,9 @@
   // Allow changing name on click
   if (userInfoEl) {
     userInfoEl.addEventListener('click', () => {
-      clearUserSession();
-      emailInput.value = '';
-      loginModal.style.display = 'flex';
-      emailInput.focus();
+      if (!getCurrentUserSession()) {
+        showLoginModal();
+      }
     });
   }
 
@@ -515,34 +363,23 @@
   }
 
   function renderCoins(n) {
-    container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     // Render all coins - they layer on top of each other
     for (let i = 0; i < n; i++) {
       const coin = createPositionedCoin(i, false);
-      container.appendChild(coin);
+      fragment.appendChild(coin);
     }
+    container.replaceChildren(fragment);
   }
 
   async function addCoin(member) {
-    // Check if user is logged in with authorized credentials
     const session = getCurrentUserSession();
     const userIdentifier = session?.userIdentifier;
-    const userEmailHash = session?.userEmailHash;
     const userName = session?.userName;
     
-    if (!userIdentifier || !userEmailHash || !userName) {
+    if (!userIdentifier || !userName) {
       alert('Please log in to vote');
-      loginModal.style.display = 'flex';
-      emailInput.focus();
-      return;
-    }
-    
-    // Verify email hash is still in allowed list (for revoked access)
-    if (allowedEmails.length > 0 && !allowedEmails.includes(userEmailHash)) {
-      alert('Your access has been revoked. Please contact an administrator.');
-      clearUserSession();
-      loginModal.style.display = 'flex';
-      emailInput.focus();
+      showLoginModal();
       return;
     }
     
@@ -594,18 +431,9 @@
     playCoinSound();
     toggleReset();
     
-    // Persist to Gist
     try {
-      const dataToSave = {
-        total: count,
-        members: memberCounts,
-        history: history,
-        withdrawals: withdrawals
-      };
+      const savedData = await storage.addCoin(member);
       
-      const savedData = await storage.saveData(dataToSave);
-      
-      // Update with the actual saved data (in case of concurrent updates)
       count = savedData.total;
       memberCounts = savedData.members;
       history = savedData.history || [];
@@ -617,16 +445,16 @@
     } catch (error) {
       console.error('Failed to save coin:', error.message);
       
-      // Show user-friendly error message
       let errorMessage = 'Failed to save coin data!';
-      if (error.message.includes('token not configured')) {
-        errorMessage = 'GitHub token not configured. Please check the setup instructions.';
-      } else if (error.message.includes('Gist ID not configured')) {
-        errorMessage = 'Gist not configured. Please check the setup instructions.';
-      } else if (error.message.includes('403')) {
-        errorMessage = 'Access denied. Please check your GitHub token permissions.';
-      } else if (error.message.includes('404')) {
-        errorMessage = 'Gist not found. Please check your gist ID in the configuration.';
+      if (error.status === 401) {
+        errorMessage = 'Your session has expired. Please sign in again.';
+      } else if (error.status === 403) {
+        errorMessage = 'You are not allowed to add complaints.';
+      } else if (error.status === 429) {
+        const remainingSeconds = error.payload?.remainingSeconds;
+        errorMessage = remainingSeconds
+          ? `Please wait ${remainingSeconds} seconds before adding another complaint.`
+          : 'Please wait before adding another complaint.';
       }
       
       alert(errorMessage);
@@ -634,13 +462,15 @@
       // Rollback optimistic update
       count--;
       memberCounts[member] = (memberCounts[member] || 1) - 1;
+      history.shift();
       updateDisplay();
       renderMemberStats();
-      // Reset user's cooldown on error
-      const session = getCurrentUserSession();
-      const userIdentifier = session?.userIdentifier;
       if (userIdentifier) {
         localStorage.removeItem(getUserCooldownKey(userIdentifier));
+      }
+      if (error.status === 401 || error.status === 403) {
+        clearUserSession();
+        showLoginModal();
       }
       enableButtons();
     }
@@ -712,10 +542,16 @@
     return coin;
   }
 
-  // Recalculate positions on resize
+  let resizeRenderFrame = 0;
   globalThis.addEventListener('resize', () => {
-    // Re-render all coins without animation
-    renderCoins(count);
+    if (resizeRenderFrame) {
+      cancelAnimationFrame(resizeRenderFrame);
+    }
+
+    resizeRenderFrame = requestAnimationFrame(() => {
+      resizeRenderFrame = 0;
+      renderCoins(count);
+    });
   });
 
   async function reset() {
@@ -752,7 +588,7 @@
   }
   
   // Make reset available for testing (can be called from browser console)
-  window.resetCoins = actualReset;
+  globalThis.resetCoins = actualReset;
 
   function toggleReset() {
     resetBtn.hidden = count === 0;
@@ -971,6 +807,15 @@
     
     return statsData;
   }
+
+  function getWeekKey(date) {
+    const weekDate = new Date(date);
+    const day = weekDate.getDay();
+    const diff = weekDate.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(weekDate.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString().split('T')[0];
+  }
   
   function generateTimeBasedData() {
     if (history.length === 0) return { timePoints: [], memberData: {} };
@@ -991,16 +836,6 @@
     
     // Group data by weeks
     const weeklyData = {};
-    
-    // Helper function to get the start of week (Monday) as key
-    function getWeekKey(date) {
-      const d = new Date(date);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-      const monday = new Date(d.setDate(diff));
-      monday.setHours(0, 0, 0, 0);
-      return monday.toISOString().split('T')[0]; // Return YYYY-MM-DD format
-    }
     
     // Process each history entry and group by week
     sortedHistory.forEach(entry => {
@@ -1028,7 +863,7 @@
     });
     
     // Sort weeks chronologically
-    const sortedWeeks = Object.keys(weeklyData).sort();
+    const sortedWeeks = Object.keys(weeklyData).sort((left, right) => left.localeCompare(right));
     
     // Add one week earlier than the first data point for better context
     if (sortedWeeks.length > 0) {
@@ -1096,9 +931,7 @@
   
   function openStatsViewer() {
     const statsModal = document.getElementById('statsModal');
-    const statsContent = document.getElementById('statsContent');
     const statsSummary = document.getElementById('statsSummary');
-    const statsLegend = document.getElementById('statsLegend');
     
     const statsData = generateStatsData();
     
@@ -1377,7 +1210,7 @@
     // Draw lines for each member's given complaints
     MEMBERS.forEach((member, memberIndex) => {
       const data = memberData[member];
-      if (data && data.given.some(val => val > 0)) { // Only draw if member has given complaints
+      if (data?.given.some(val => val > 0)) { // Only draw if member has given complaints
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
@@ -1424,7 +1257,7 @@
     // Draw lines for each member's received complaints (dashed)
     MEMBERS.forEach((member, memberIndex) => {
       const data = memberData[member];
-      if (data && data.received.some(val => val > 0)) { // Only draw if member has received complaints
+      if (data?.received.some(val => val > 0)) { // Only draw if member has received complaints
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
@@ -1502,8 +1335,7 @@
     const session = getCurrentUserSession();
     if (!session) {
       alert('Please log in to withdraw funds');
-      loginModal.style.display = 'flex';
-      emailInput.focus();
+      showLoginModal();
       return;
     }
     
@@ -1555,19 +1387,6 @@
     withdrawModal.hidden = false;
   }
   
-  // SHA-256 hash of the withdrawal password - UPDATE THIS WITH YOUR ACTUAL HASH
-  // To generate a hash, run in browser console: 
-  // crypto.subtle.digest('SHA-256', new TextEncoder().encode('your-password')).then(h => console.log(Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('')))
-  const WITHDRAW_PASSWORD_HASH = '257db658748423fd296b35652144228b42f6ed345c4996896c2c32f0165db49e';
-  
-  async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-  
   async function performWithdraw() {
     const withdrawModal = document.getElementById('withdrawModal');
     const withdrawNoteInput = document.getElementById('withdrawNote');
@@ -1593,17 +1412,6 @@
       return;
     }
     
-    const passwordHash = await hashPassword(password);
-    if (passwordHash !== WITHDRAW_PASSWORD_HASH) {
-      if (withdrawPasswordError) {
-        withdrawPasswordError.textContent = 'Incorrect password';
-        withdrawPasswordError.hidden = false;
-      }
-      withdrawPasswordInput?.select();
-      return;
-    }
-    
-    // Hide error on success
     if (withdrawPasswordError) {
       withdrawPasswordError.hidden = true;
     }
@@ -1613,58 +1421,15 @@
       return;
     }
     
-    // Create withdrawal record with period data
     const totalAmount = count * VALUE_PER_COIN;
-    
-    // Get date range from history
-    let periodStart = new Date().toISOString();
-    const periodEnd = new Date().toISOString();
-    if (history.length > 0) {
-      const sortedHistory = [...history].sort((a, b) => 
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      periodStart = sortedHistory[0].timestamp;
-    }
-    
-    // Generate period statistics
-    const periodStats = generateStatsData();
-    
-    const withdrawalRecord = {
-      id: Date.now() + Math.random(),
-      timestamp: new Date().toISOString(),
-      withdrawnBy: session.userName,
-      amount: totalAmount,
-      coinCount: count,
-      note: withdrawNoteInput?.value.trim() || '',
-      period: {
-        startDate: periodStart,
-        endDate: periodEnd
-      },
-      memberCounts: { ...memberCounts },
-      history: [...history],
-      statistics: periodStats
-    };
-    
-    // Add to withdrawals array
-    withdrawals.unshift(withdrawalRecord);
-    
-    // Reset current period data
-    count = 0;
-    memberCounts = Object.fromEntries(MEMBERS.map(m => [m, 0]));
-    history = [];
-    
-    // Save to storage
+
     try {
-      const dataToSave = {
-        total: count,
-        members: memberCounts,
-        history: history,
-        withdrawals: withdrawals
-      };
+      const response = await storage.withdraw({
+        note: withdrawNoteInput?.value.trim() || '',
+        password
+      });
+      const savedData = response.state || response;
       
-      const savedData = await storage.saveData(dataToSave);
-      
-      // Update with the actual saved data
       count = savedData.total;
       memberCounts = savedData.members;
       history = savedData.history || [];
@@ -1676,24 +1441,29 @@
       renderMemberStats();
       toggleReset();
       
-      // Close modal and show success message
       withdrawModal.hidden = true;
       
-      // Show a nice confirmation
       setTimeout(() => {
         alert(`Successfully withdrew ${totalAmount} SEK! 🎉\nThe can has been reset for a new period.`);
       }, 100);
       
-      console.log('Withdrawal completed:', withdrawalRecord);
+      console.log('Withdrawal completed:', response.withdrawal || savedData);
     } catch (error) {
       console.error('Failed to save withdrawal:', error.message);
-      
-      // Rollback
-      count = withdrawalRecord.coinCount;
-      memberCounts = withdrawalRecord.memberCounts;
-      history = withdrawalRecord.history;
-      withdrawals.shift(); // Remove the withdrawal we just added
-      
+
+      if (withdrawPasswordError && error.status === 403) {
+        withdrawPasswordError.textContent = 'Incorrect password';
+        withdrawPasswordError.hidden = false;
+        withdrawPasswordInput?.select();
+        return;
+      }
+
+      if (error.status === 401) {
+        clearUserSession();
+        withdrawModal.hidden = true;
+        showLoginModal();
+      }
+
       alert('Failed to process withdrawal: ' + error.message);
     }
   }
@@ -1811,7 +1581,7 @@
   }
   
   // Global function to draw chart when section is expanded
-  window.drawWithdrawalChartById = function(index) {
+  globalThis.drawWithdrawalChartById = function(index) {
     if (withdrawals[index]) {
       drawWithdrawalChart(withdrawals[index], index);
     }
@@ -1922,27 +1692,16 @@
   // Initialize app
   async function init() {
     console.log('Initializing Complain Can app...');
-    
-    // Wait for EmailHasher to be available
-    let attempts = 0;
-    while (!window.emailHasher && attempts < 50) {
-      console.log('Waiting for EmailHasher to load...');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      attempts++;
-    }
-    
-    if (!window.emailHasher) {
-      console.error('❌ EmailHasher failed to load - login functionality will not work');
-      alert('Email hashing system failed to load. Please refresh the page.');
+
+    storage = initStorage();
+
+    if (!storage) {
+      alert('Application API is not available. Start the proxy server and refresh the page.');
       return;
     }
-    
-    console.log('✅ EmailHasher loaded successfully');
-    
-    // Initialize storage first
-    storage = initStorage();
-    
-    await loadAllowedEmails();
+
+    await loadBootstrap();
+    await refreshUserSession();
     initializeUserName();
     await load();
     

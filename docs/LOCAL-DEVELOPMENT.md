@@ -1,49 +1,39 @@
 # Local Development Guide
 
-## Quick Start (No GitHub Setup Required)
+## Quick Start
 
-For immediate local testing without any GitHub configuration:
+The app now requires the proxy server even in local development, because authentication and persistence are handled server-side.
 
 ### 1. Start Local Server
 ```bash
-# Using Python (most common)
-python3 -m http.server 8080
-
-# Alternative options
-python -m SimpleHTTPServer 8080  # Python 2
-npx serve . -p 8080              # Node.js
-php -S localhost:8080            # PHP
+./dev-server.sh
 ```
 
 ### 2. Open in Browser
-- **Development version**: http://localhost:8080/index-dev.html
-- **Production version**: http://localhost:8080/index.html
+- **Development version**: http://localhost:3000/index-dev.html
+- **Production-style entry**: http://localhost:3000/index.html
 
 ## Development vs Production
 
-### Development Mode (`index-dev.html`)
-- ✅ Works immediately without setup
-- ✅ Data persists in browser localStorage
-- ✅ Visual indicator showing dev mode
-- ✅ Pre-filled with sample data
-- ❌ Data not shared between users/browsers
+### Development Mode
+- ✅ Works immediately with local auth and local JSON storage
+- ✅ Uses the same API boundary as production
+- ✅ Keeps browser code free of secrets
 
-### Production Mode (`index.html`)
-- ❌ Requires GitHub token & gist setup
-- ✅ Data shared across all users
-- ✅ Data persists permanently in GitHub Gist
-- ✅ Works on GitHub Pages
+### Shared Mode
+- ✅ Uses GitHub OAuth for sign-in
+- ✅ Persists shared data to GitHub Gist
+- ✅ Enforces access control and rate limits on the server
 
 ## Local Development Features
 
 ### Persistent Storage
-In development mode, your coin data is saved to browser localStorage, so it persists between sessions (until you clear browser data).
+In development mode, coin data is stored in `proxy-server/data/app-state.json`.
 
 ### Reset Data
-Open browser console and run:
-```javascript
-localStorage.removeItem('complaincan_data');
-location.reload();
+Delete the local state file and restart the proxy:
+```bash
+rm -f proxy-server/data/app-state.json
 ```
 
 ### Withdrawal Feature
@@ -53,43 +43,38 @@ The app includes a "Withdraw Funds" feature that:
 - Requires a password (SHA-256 hashed) to confirm withdrawal
 - All past withdrawals can be viewed in the "Withdrawals" history
 
-**Note**: The withdrawal password hash is configured in `src/script.js` - look for `WITHDRAW_PASSWORD_HASH`.
+**Note**: The withdrawal password hash is configured on the server through `proxy-server/.env` as `WITHDRAW_PASSWORD_HASH`.
 
 ### Debug Information
-The console will show detailed logs about data loading/saving:
-- 📱 localStorage operations
-- 🔧 Development mode indicators
-- 💾 Data persistence confirmations
+The proxy logs authentication mode, storage mode, and persistence failures in the terminal where you start it.
 
 ## File Structure for Local Development
 
 ```
 complain-can/
-├── index-dev.html          # Development version (use this locally)
-├── index.html              # Production version (GitHub Pages)
+├── index-dev.html          # Development entry
+├── index.html              # Main entry
+├── proxy-server/           # Auth and persistence server
 ├── src/
-│   ├── config-dev.js       # Development configuration
-│   ├── config.js           # Production configuration
-│   ├── gist-storage.js     # Storage handler (works in both modes)
+│   ├── api-storage.js      # Browser API wrapper
 │   └── script.js           # Main application logic
-├── assets/
-│   └── styles.css          # Styling
-└── docs/
-    └── LOCAL-DEVELOPMENT.md # This file
+└── assets/
+    └── styles.css          # Styling
 ```
 
 ## Live Reload for Development
 
 For automatic reload during development:
 ```bash
-npx live-server --port=8080 --entry-file=index-dev.html
+npx nodemon proxy-server/server.js
 ```
 
-This will open the development version and reload automatically when you make changes.
+Use a separate browser tab for `http://localhost:3000/index-dev.html`.
 
 ## Migration to Production
 
-When ready to deploy to GitHub Pages:
-1. Follow `docs/SETUP.md` to configure GitHub integration
-2. Use `index.html` instead of `index-dev.html`
-3. Your development data won't transfer (you'll start fresh)
+When ready to use GitHub OAuth and shared persistence:
+1. Copy `proxy-server/.env.example` to `proxy-server/.env`
+2. Set `AUTH_MODE=github`
+3. Set `STORAGE_MODE=gist`
+4. Configure the GitHub OAuth app callback to `/api/auth/callback`
