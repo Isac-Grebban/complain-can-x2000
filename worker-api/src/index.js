@@ -449,7 +449,8 @@ async function isGithubUserAllowed(token, user, env) {
 function githubHeaders(token) {
   return {
     Accept: 'application/vnd.github+json',
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
+    'User-Agent': 'complain-can-worker'
   };
 }
 
