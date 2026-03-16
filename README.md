@@ -44,6 +44,7 @@ By default the proxy starts in `AUTH_MODE=development` and `STORAGE_MODE=local`,
 | Guide | Purpose |
 |-------|---------|
 | **[📋 QUICK-START.md](./docs/QUICK-START.md)** | **Deployment and environment setup** |
+| [☁️ CLOUDFLARE-PAGES-WORKERS-SETUP.md](./docs/CLOUDFLARE-PAGES-WORKERS-SETUP.md) | Cloudflare migration and external setup plan |
 | [📖 SETUP.md](./docs/SETUP.md) | Detailed setup with troubleshooting |
 | [💻 LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Local development guide |
 
