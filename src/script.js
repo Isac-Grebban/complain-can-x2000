@@ -85,7 +85,7 @@
       updateLoginCopy();
     } catch (error) {
       console.error('❌ Failed to load bootstrap config:', error.message);
-      bootstrap = { authMode: 'github', loginPath: '/api/auth/login' };
+      bootstrap = { authMode: 'github', loginPath: storage.resolveUrl('/api/auth/login') };
     }
 
     return bootstrap;
@@ -163,8 +163,8 @@
   }
 
   async function handleLogin() {
-    const loginPath = bootstrap?.loginPath || '/api/auth/login';
-    const nextPath = `${globalThis.location.pathname}${globalThis.location.search}${globalThis.location.hash}`;
+    const loginPath = storage.resolveUrl(bootstrap?.loginPath || '/api/auth/login');
+    const nextPath = storage.getLoginReturnTarget();
     console.log('🔐 Redirecting to server-side auth flow');
 
     if (!loginPath) {
@@ -1696,7 +1696,7 @@
     storage = initStorage();
 
     if (!storage) {
-      alert('Application API is not available. Start the proxy server and refresh the page.');
+      alert('Application API is not available. Configure the backend endpoint and refresh the page.');
       return;
     }
 

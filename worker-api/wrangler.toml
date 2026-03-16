@@ -1,0 +1,12 @@
+name = "complain-can-api"
+main = "src/index.js"
+compatibility_date = "2026-03-11"
+
+kv_namespaces = [
+  { binding = "COOLDOWN_KV", id = "replace-with-production-kv-id", preview_id = "replace-with-preview-kv-id" }
+]
+
+[vars]
+AUTH_MODE = "development"
+STORAGE_MODE = "memory"
+GIST_FILENAME = "coins.json"

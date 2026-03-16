@@ -1,4 +1,43 @@
 class ApiStorage {
+  constructor() {
+    this.apiBaseUrl = this.normalizeBaseUrl(globalThis.APP_CONFIG?.API_BASE_URL || '');
+  }
+
+  normalizeBaseUrl(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+  }
+
+  resolveUrl(path) {
+    const input = String(path || '');
+    if (/^https?:\/\//i.test(input)) {
+      return input;
+    }
+
+    const baseOrigin = this.apiBaseUrl || globalThis.location.origin;
+    return new URL(input, `${baseOrigin}/`).toString();
+  }
+
+  isCrossOrigin() {
+    if (!this.apiBaseUrl) {
+      return false;
+    }
+
+    return new URL(this.apiBaseUrl).origin !== globalThis.location.origin;
+  }
+
+  getLoginReturnTarget() {
+    if (this.isCrossOrigin()) {
+      return globalThis.location.href;
+    }
+
+    return `${globalThis.location.pathname}${globalThis.location.search}${globalThis.location.hash}`;
+  }
+
   async request(path, options = {}) {
     const headers = {
       Accept: 'application/json',
@@ -6,8 +45,8 @@ class ApiStorage {
       ...options.headers
     };
 
-    const response = await fetch(path, {
-      credentials: 'same-origin',
+    const response = await fetch(this.resolveUrl(path), {
+      credentials: 'include',
       ...options,
       headers
     });
