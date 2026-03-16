@@ -5,8 +5,3 @@ compatibility_date = "2026-03-11"
 kv_namespaces = [
   { binding = "COOLDOWN_KV", id = "6fe5d2f7da3f45fcb55c43d0993c3376", preview_id = "6fe5d2f7da3f45fcb55c43d0993c3376" }
 ]
-
-[vars]
-AUTH_MODE = "development"
-STORAGE_MODE = "memory"
-GIST_FILENAME = "coins.json"
