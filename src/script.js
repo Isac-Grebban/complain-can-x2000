@@ -12,6 +12,9 @@
   const SESSION_KEY_PREFIX = 'complainCan_';
 
   const memberStatsEl = document.getElementById('memberStats');
+  const insightLeaderEl = document.getElementById('insightLeader');
+  const insightTodayEl = document.getElementById('insightToday');
+  const insightRecentEl = document.getElementById('insightRecent');
   const userInfoEl = document.getElementById('userInfo');
   const loginModal = document.getElementById('loginModal');
   const emailInput = document.getElementById('emailInput');
@@ -23,7 +26,6 @@
   const jarNeck = document.querySelector('.jar-neck');
   const MEMBERS = ['Isac','Hannah','Andreas','Karl','Daniel','Doug','Marina'];
   const VALUE_PER_COIN = 5; // SEK per coin
-
   let count = 0;
   let memberCounts = Object.fromEntries(MEMBERS.map(m=>[m,0]));
   let history = [];
@@ -78,7 +80,6 @@
     };
     
     localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(sessionData));
-    console.log('💾 Session saved, expires in', SESSION_DURATION_DAYS, 'days');
   }
 
   function loadUserSession() {
@@ -90,12 +91,10 @@
       
       // Check if session has expired
       if (Date.now() > session.expiresAt) {
-        console.log('⏰ Session expired, clearing...');
         clearUserSession();
         return null;
       }
 
-      console.log('✅ Valid session found, expires:', new Date(session.expiresAt).toLocaleString());
       return session;
     } catch (error) {
       console.error('❌ Error loading session:', error);
@@ -106,7 +105,6 @@
 
   function clearUserSession() {
     localStorage.removeItem(SESSION_KEY_PREFIX + 'session');
-    console.log('🗑️ Session cleared');
   }
 
   function extendUserSession() {
@@ -114,7 +112,6 @@
     if (session) {
       session.expiresAt = Date.now() + (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
       localStorage.setItem(SESSION_KEY_PREFIX + 'session', JSON.stringify(session));
-      console.log('⚡ Session extended');
     }
   }
 
@@ -132,20 +129,13 @@
 
   // Load allowed email hashes (now using SHA256 for privacy)
   async function loadAllowedEmails() {
-    console.log('📥 Loading allowed emails...');
-    console.log('🌐 Current URL:', window.location.href);
-    console.log('📂 Fetching from:', window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/email-hashes.json');
     
     try {
       // Use relative path to work with GitHub Pages subdirectory deployment
       const res = await fetch('./email-hashes.json');
-      console.log('📡 Fetch response status:', res.status);
-      console.log('📡 Fetch response headers:', [...res.headers.entries()]);
       
       if (res.ok) {
         const text = await res.text();
-        console.log('📄 Raw response text:', text);
-        console.log('📄 Response length:', text.length);
         
         if (!text || text.trim() === '') {
           console.error('❌ Empty response from email-hashes.json');
@@ -154,15 +144,11 @@
         }
         
         const data = JSON.parse(text);
-        console.log('📄 Parsed email config:', data);
-        console.log('📄 Config keys:', Object.keys(data));
         
         // Support both legacy format (plain emails) and new format (hashes)
         if (data.allowedEmailHashes && data.allowedEmailHashes.length > 0) {
           // New secure format with hashes
           allowedEmails = data.allowedEmailHashes;
-          console.log('✅ Loaded secure email hashes for validation, count:', allowedEmails.length);
-          console.log('🔑 First few hashes:', allowedEmails.slice(0, 2));
         } else if (data.allowedEmails && data.allowedEmails.length > 0) {
           // Legacy format - convert plain emails to hashes on-the-fly
           console.warn('⚠️  Found legacy plain-text emails. Converting to hashes...');
@@ -178,7 +164,6 @@
                 console.error('Failed to hash email:', email, error);
               }
             }
-            console.log('✅ Converted legacy emails to hashes, count:', allowedEmails.length);
           } else {
             // Fallback: use plain emails directly (less secure but works)
             console.warn('⚠️  EmailHasher not available, using plain emails (INSECURE!)');
@@ -198,7 +183,6 @@
       allowedEmails = [];
     }
     
-    console.log('📋 Final allowedEmails array:', allowedEmails);
   }
 
   // User name handling is now done by EmailHasher class
@@ -209,7 +193,6 @@
     
     if (session) {
       // Already logged in with valid persistent session
-      console.log('🔐 Restoring user session for:', session.userName);
       updateUserDisplay(session.userName);
       loginModal.style.display = 'none';
       document.body.classList.add('app-loaded');
@@ -219,7 +202,6 @@
       extendUserSession();
     } else {
       // No valid session, show login modal
-      console.log('🔑 No valid session found, showing login');
       loginModal.style.display = 'flex';
       emailInput.focus();
       logoutBtn.hidden = true;
@@ -229,15 +211,12 @@
   async function handleLogin() {
     const email = emailInput.value.trim();
     
-    console.log('🔐 Login attempt for email:', email);
     
     if (!email) {
       alert('Please enter an email address');
       return;
     }
     
-    console.log('📋 Allowed emails/hashes count:', allowedEmails.length);
-    console.log('📧 Checking email:', email);
     
     // Check if we have any allowed emails/hashes
     if (allowedEmails.length === 0) {
@@ -251,23 +230,19 @@
     
     // Try different validation methods
     if (window.emailHasher) {
-      console.log('✅ EmailHasher available, using secure validation');
       
       try {
         // Method 1: New secure hash validation
         const validation = await window.emailHasher.validateAndHashEmail(email, allowedEmails);
         
         if (validation.isValid) {
-          console.log('✅ Hash validation successful');
           isValid = true;
           userHash = validation.hash;
         } else {
-          console.log('⚠️  Hash validation failed, trying legacy validation...');
           
           // Method 2: Legacy plain email validation (fallback)
           const normalizedEmail = email.toLowerCase().trim();
           if (allowedEmails.includes(normalizedEmail)) {
-            console.log('✅ Legacy validation successful');
             isValid = true;
             userHash = await window.emailHasher.hashEmail(email);
           }
@@ -288,7 +263,6 @@
       return;
     }
     
-    console.log('✅ Email validation successful');
     
     // Extract display name and create identifiers
     let userName, userIdentifier;
@@ -458,7 +432,6 @@
         }
       });
       
-      console.log('Loaded coin data:', { count, memberCounts, historyEntries: history.length, withdrawalsCount: withdrawals.length });
     } catch (error) {
       console.error('Failed to load coin data:', error.message);
       // Use fallback data
@@ -471,6 +444,47 @@
     renderCoins(count);
     renderMemberStats();
     toggleReset();
+  }
+
+  function renderInsights() {
+    if (!insightLeaderEl || !insightTodayEl || !insightRecentEl) return;
+
+    const sorted = Object.entries(memberCounts).sort((a, b) => b[1] - a[1]);
+    const bestCount = sorted[0]?.[1] || 0;
+
+    if (bestCount === 0) {
+      insightLeaderEl.textContent = '🏁 No complaints yet — spotless record!';
+    } else {
+      const leaders = sorted.filter(([, cnt]) => cnt === bestCount).map(([name]) => name);
+      const leaderText = leaders.length === 1
+        ? `👑 Top complainer: ${leaders[0]} (${bestCount})`
+        : `🤝 Tied leaders: ${leaders.join(', ')} (${bestCount} each)`;
+      insightLeaderEl.textContent = leaderText;
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayComplaints = history.filter(entry => (
+      entry.action === 'add_coin' && new Date(entry.timestamp).getTime() >= startOfToday.getTime()
+    )).length;
+    insightTodayEl.textContent = `📅 Today: ${todayComplaints} complaint${todayComplaints === 1 ? '' : 's'} (${todayComplaints * VALUE_PER_COIN} SEK)`;
+
+    insightRecentEl.innerHTML = '';
+    const recent = history.filter(entry => entry.action === 'add_coin').slice(0, 5);
+    if (recent.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'insight-recent-item';
+      empty.textContent = 'No recent activity yet.';
+      insightRecentEl.appendChild(empty);
+      return;
+    }
+
+    recent.forEach((entry, index) => {
+      const row = document.createElement('div');
+      row.className = 'insight-recent-item';
+      row.textContent = `${index + 1}. ${entry.member} by ${entry.addedBy || 'Unknown'}`;
+      insightRecentEl.appendChild(row);
+    });
   }
 
   function renderMemberStats() {
@@ -512,6 +526,7 @@
       document.getElementById('coinCount').appendChild(totalSekEl);
     }
     totalSekEl.textContent = `= ${count * VALUE_PER_COIN} SEK`;
+    renderInsights();
   }
 
   function renderCoins(n) {
@@ -613,7 +628,6 @@
       updateDisplay();
       renderMemberStats();
       
-      console.log(`Coin added for ${member}. Total: ${count}`);
     } catch (error) {
       console.error('Failed to save coin:', error.message);
       
@@ -744,7 +758,6 @@
       renderCoins(count);
       renderMemberStats();
       toggleReset();
-      console.log('Data reset successfully');
     } catch (error) {
       console.error('Failed to reset data:', error.message);
       alert('Failed to reset data: ' + error.message);
@@ -1557,7 +1570,6 @@
   
   // SHA-256 hash of the withdrawal password - UPDATE THIS WITH YOUR ACTUAL HASH
   // To generate a hash, run in browser console: 
-  // crypto.subtle.digest('SHA-256', new TextEncoder().encode('your-password')).then(h => console.log(Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('')))
   const WITHDRAW_PASSWORD_HASH = '257db658748423fd296b35652144228b42f6ed345c4996896c2c32f0165db49e';
   
   async function hashPassword(password) {
@@ -1684,7 +1696,6 @@
         alert(`Successfully withdrew ${totalAmount} SEK! 🎉\nThe can has been reset for a new period.`);
       }, 100);
       
-      console.log('Withdrawal completed:', withdrawalRecord);
     } catch (error) {
       console.error('Failed to save withdrawal:', error.message);
       
@@ -1921,12 +1932,10 @@
 
   // Initialize app
   async function init() {
-    console.log('Initializing Complain Can app...');
     
     // Wait for EmailHasher to be available
     let attempts = 0;
     while (!window.emailHasher && attempts < 50) {
-      console.log('Waiting for EmailHasher to load...');
       await new Promise(resolve => setTimeout(resolve, 100));
       attempts++;
     }
@@ -1937,7 +1946,6 @@
       return;
     }
     
-    console.log('✅ EmailHasher loaded successfully');
     
     // Initialize storage first
     storage = initStorage();
@@ -1949,7 +1957,6 @@
     // Check if user has an existing cooldown
     checkExistingCooldown();
     
-    console.log('App initialized successfully');
   }
   
   init();

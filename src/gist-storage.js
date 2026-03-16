@@ -10,10 +10,7 @@ class GistStorage {
     // Development mode detection
     this.isDevMode = this.token === 'DEV_MODE' || this.gistId === 'DEV_MODE';
     this.localStorageKey = 'complaincan_data';
-    
-    if (this.isDevMode) {
-      console.log('🔧 Running in development mode - using localStorage for persistence');
-    }
+
   }
 
   async loadData() {
@@ -23,10 +20,8 @@ class GistStorage {
         const stored = localStorage.getItem(this.localStorageKey);
         if (stored) {
           const data = JSON.parse(stored);
-          console.log('📱 Loaded data from localStorage:', data);
           return data;
         } else {
-          console.log('📱 No stored data found, using fallback');
           return { ...this.fallbackData };
         }
       } catch (error) {
@@ -83,7 +78,6 @@ class GistStorage {
     if (this.isDevMode) {
       try {
         localStorage.setItem(this.localStorageKey, JSON.stringify(dataToSave));
-        console.log('💾 Saved data to localStorage:', dataToSave);
         return dataToSave;
       } catch (error) {
         console.error('Failed to save to localStorage:', error.message);
@@ -168,8 +162,6 @@ class GistStorage {
       }
 
       const gist = await response.json();
-      console.log('Created gist with ID:', gist.id);
-      console.log('Update your config.js with: GIST_ID: \'' + gist.id + '\'');
       return gist;
     } catch (error) {
       console.error('Failed to create gist:', error.message);
