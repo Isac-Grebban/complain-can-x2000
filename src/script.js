@@ -12,6 +12,8 @@
   const userInfoEl = document.getElementById('userInfo');
   const loginModal = document.getElementById('loginModal');
   const loginBtn = document.getElementById('loginBtn');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginStatus = document.getElementById('loginStatus');
   const logoutBtn = document.getElementById('logoutBtn');
   const loginSubtitle = document.getElementById('loginSubtitle');
   const loginFooterNote = document.getElementById('loginFooterNote');
@@ -85,10 +87,39 @@
       updateLoginCopy();
     } catch (error) {
       console.error('❌ Failed to load bootstrap config:', error.message);
-      bootstrap = { authMode: 'github', loginPath: storage.resolveUrl('/api/auth/login') };
+      bootstrap = { authMode: 'supabase', loginPath: null };
     }
 
     return bootstrap;
+  }
+
+  function setLoginStatus(message, isError = false) {
+    if (!loginStatus) {
+      return;
+    }
+
+    if (!message) {
+      loginStatus.hidden = true;
+      loginStatus.textContent = '';
+      loginStatus.style.background = '';
+      loginStatus.style.borderColor = '';
+      loginStatus.style.color = '';
+      return;
+    }
+
+    loginStatus.hidden = false;
+    loginStatus.textContent = message;
+
+    if (isError) {
+      loginStatus.style.background = 'rgba(239, 68, 68, 0.1)';
+      loginStatus.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+      loginStatus.style.color = '#fca5a5';
+      return;
+    }
+
+    loginStatus.style.background = 'rgba(37, 99, 235, 0.12)';
+    loginStatus.style.borderColor = 'rgba(37, 99, 235, 0.35)';
+    loginStatus.style.color = '#bfdbfe';
   }
 
   function clearUserSession() {
@@ -121,24 +152,42 @@
       return;
     }
 
-    const isDevelopmentAuth = bootstrap?.authMode === 'development';
-    loginBtn.textContent = isDevelopmentAuth ? 'Continue In Local Mode' : 'Continue With GitHub';
+    const authMode = bootstrap?.authMode;
+    const isDevelopmentAuth = authMode === 'development';
+    const isSupabaseAuth = authMode === 'supabase';
+    let buttonText = 'Continue With GitHub';
+    let subtitleText = 'Sign in with GitHub to access the complaint can.';
+    let footerText = 'Authentication is verified server-side with your GitHub account.';
+
+    if (isDevelopmentAuth) {
+      buttonText = 'Continue In Local Mode';
+      subtitleText = 'Local development mode is enabled for this server.';
+      footerText = 'Authentication is mocked locally until GitHub OAuth is configured.';
+    } else if (isSupabaseAuth) {
+      buttonText = 'Email Me A Sign-In Link';
+      subtitleText = 'Sign in with your email to access the complaint can.';
+      footerText = 'We will send you a one-time sign-in link or code by email.';
+    }
+
+    loginBtn.textContent = buttonText;
+
+    if (loginEmail) {
+      loginEmail.hidden = !isSupabaseAuth;
+      loginEmail.disabled = !isSupabaseAuth;
+    }
 
     if (loginSubtitle) {
-      loginSubtitle.textContent = isDevelopmentAuth
-        ? 'Local development mode is enabled for this server.'
-        : 'Sign in with GitHub to access the complaint can.';
+      loginSubtitle.textContent = subtitleText;
     }
 
     if (loginFooterNote) {
-      loginFooterNote.textContent = isDevelopmentAuth
-        ? 'Authentication is mocked locally until GitHub OAuth is configured.'
-        : 'Authentication is verified server-side with your GitHub account.';
+      loginFooterNote.textContent = footerText;
     }
   }
 
   function showLoginModal() {
     loginModal.style.display = 'flex';
+    setLoginStatus('');
     loginBtn?.focus();
   }
 
@@ -163,6 +212,25 @@
   }
 
   async function handleLogin() {
+    if (bootstrap?.authMode === 'supabase') {
+      const email = String(loginEmail?.value || '').trim();
+      if (!email) {
+        setLoginStatus('Enter your email address to receive a sign-in link.', true);
+        loginEmail?.focus();
+        return;
+      }
+
+      try {
+        setLoginStatus('Sending your sign-in email...');
+        await globalThis.SupabaseAuth?.signInWithOtp?.(email, globalThis.location.href.split('#')[0]);
+        setLoginStatus('Check your email for the sign-in link or code.');
+      } catch (error) {
+        console.error('Failed to start Supabase sign-in:', error.message);
+        setLoginStatus(error.message || 'Failed to send the sign-in email.', true);
+      }
+      return;
+    }
+
     const loginPath = storage.resolveUrl(bootstrap?.loginPath || '/api/auth/login');
     const nextPath = storage.getLoginReturnTarget();
     console.log('🔐 Redirecting to server-side auth flow');
@@ -177,6 +245,9 @@
 
   async function handleLogout() {
     try {
+      if (bootstrap?.authMode === 'supabase') {
+        await globalThis.SupabaseAuth?.signOut?.();
+      }
       await storage.logout();
     } catch (error) {
       console.error('Failed to log out cleanly:', error.message);
@@ -1693,6 +1764,10 @@
   async function init() {
     console.log('Initializing Complain Can app...');
 
+    if (globalThis.SupabaseAuth?.ready) {
+      await globalThis.SupabaseAuth.ready;
+    }
+
     storage = initStorage();
 
     if (!storage) {
@@ -1704,6 +1779,15 @@
     await refreshUserSession();
     initializeUserName();
     await load();
+
+    if (globalThis.SupabaseAuth?.onAuthStateChange) {
+      globalThis.SupabaseAuth.onAuthStateChange(async () => {
+        await refreshUserSession();
+        initializeUserName();
+        await load();
+        checkExistingCooldown();
+      });
+    }
     
     // Check if user has an existing cooldown
     checkExistingCooldown();

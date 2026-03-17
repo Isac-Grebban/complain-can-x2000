@@ -39,9 +39,11 @@ class ApiStorage {
   }
 
   async request(path, options = {}) {
+    const accessToken = await globalThis.SupabaseAuth?.getAccessToken?.();
     const headers = {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers
     };
 
