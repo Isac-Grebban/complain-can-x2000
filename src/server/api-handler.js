@@ -57,10 +57,11 @@ async function handleHealth(request, env) {
 }
 
 async function handleBootstrap(request, env) {
+  const authMode = getAuthMode(env);
   return withCors(request, env, jsonResponse({
-    authMode: getAuthMode(env),
+    authMode,
     storageMode: getStorageMode(env),
-    loginPath: buildApiUrl(request, env, '/api/auth/login'),
+    loginPath: authMode === 'github' ? buildApiUrl(request, env, '/api/auth/login') : null,
     logoutPath: buildApiUrl(request, env, '/api/auth/logout'),
     rateLimitMs: RATE_LIMIT_MS
   }));
@@ -91,6 +92,10 @@ async function handleState(request, env) {
 }
 
 async function handleLogin(request, env) {
+  if (getAuthMode(env) === 'supabase') {
+    throw httpError(405, 'Use the email sign-in form to authenticate.');
+  }
+
   const nextTarget = sanitizeNextTarget(new URL(request.url).searchParams.get('next'), request, env);
 
   if (getAuthMode(env) === 'development') {
@@ -297,6 +302,10 @@ async function requireSession(request, env) {
 }
 
 async function getSessionFromRequest(request, env) {
+  if (getAuthMode(env) === 'supabase') {
+    return getSupabaseSessionFromRequest(request, env);
+  }
+
   const cookies = parseCookies(request.headers.get('Cookie') || '');
   const token = cookies[SESSION_COOKIE_NAME];
   if (!token) {
@@ -609,7 +618,19 @@ function buildStatistics(memberCounts, entries) {
 }
 
 function getAuthMode(env) {
-  return String(env.AUTH_MODE || (env.GITHUB_OAUTH_CLIENT_ID ? 'github' : 'development')).toLowerCase();
+  if (env.AUTH_MODE) {
+    return String(env.AUTH_MODE).toLowerCase();
+  }
+
+  if (env.SUPABASE_URL && (env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY)) {
+    return 'supabase';
+  }
+
+  if (env.GITHUB_OAUTH_CLIENT_ID) {
+    return 'github';
+  }
+
+  return 'development';
 }
 
 function getStorageMode(env) {
@@ -622,6 +643,77 @@ function getGistConfig(env) {
     gistId: String(env.GIST_ID || '').trim(),
     filename: String(env.GIST_FILENAME || DEFAULT_GIST_FILENAME).trim() || DEFAULT_GIST_FILENAME
   };
+}
+
+async function getSupabaseSessionFromRequest(request, env) {
+  const accessToken = getBearerToken(request);
+  if (!accessToken) {
+    return null;
+  }
+
+  const user = await fetchSupabaseUser(accessToken, env);
+  if (!user) {
+    return null;
+  }
+
+  if (!isAllowedEmail(user.email, env)) {
+    throw httpError(403, 'Authenticated email is not allowed to use this app.');
+  }
+
+  return {
+    user: {
+      login: user.email,
+      displayName: user.user_metadata?.full_name || user.email,
+      email: user.email || '',
+      avatarUrl: user.user_metadata?.avatar_url || '',
+      provider: 'supabase'
+    }
+  };
+}
+
+function getBearerToken(request) {
+  const authorization = request.headers.get('Authorization') || '';
+  if (!authorization.toLowerCase().startsWith('bearer ')) {
+    return '';
+  }
+
+  return authorization.slice(7).trim();
+}
+
+async function fetchSupabaseUser(accessToken, env) {
+  const supabaseUrl = String(env.SUPABASE_URL || '').trim().replace(/\/$/, '');
+  const supabasePublishableKey = String(env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY || '').trim();
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw httpError(500, 'Supabase auth is not configured on the server.');
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      Accept: 'application/json',
+      apikey: supabasePublishableKey,
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw httpError(502, `Supabase user lookup failed (${response.status}): ${await readGithubError(response)}`);
+  }
+
+  return response.json();
+}
+
+function isAllowedEmail(email, env) {
+  const allowedEmails = splitList(env.ALLOWED_EMAILS || env.ALLOWED_GITHUB_EMAILS);
+  if (allowedEmails.size === 0) {
+    return true;
+  }
+
+  return allowedEmails.has(String(email || '').toLowerCase());
 }
 
 async function readGithubError(response) {

@@ -93,12 +93,14 @@
     <div class="login-container">
       <div class="login-emoji">🪙</div>
       <h1>Welcome to Grebcan!</h1>
-      <p id="loginSubtitle" class="login-subtitle">Local development mode is enabled for this server.</p>
+      <p id="loginSubtitle" class="login-subtitle">Sign in with your email to access the complaint can.</p>
       <form class="login-form">
-        <button id="loginBtn" class="login-button" type="button">Continue In Local Mode</button>
+        <input id="loginEmail" class="login-input" type="email" placeholder="you@company.com" autocomplete="email" inputmode="email">
+        <button id="loginBtn" class="login-button" type="button">Email Me A Sign-In Link</button>
       </form>
+      <div id="loginStatus" class="login-error" hidden></div>
       <div class="login-footer">
-        <small id="loginFooterNote">Authentication and storage can both run locally while the proxy server is in development mode.</small>
+        <small id="loginFooterNote">We will send you a one-time sign-in link or code by email.</small>
       </div>
     </div>
   </div>
@@ -195,6 +197,7 @@
   </div>
 
   <script src="src/runtime-config.js"></script>
+  <script src="src/supabase-auth.js" defer></script>
   <script src="src/api-storage.js" defer></script>
   <script src="src/script.js" defer></script>
 </body>
