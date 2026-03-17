@@ -79,6 +79,13 @@ class ApiStorage {
     return this.request('/api/auth/session');
   }
 
+  async checkEmail(email) {
+    return this.request('/api/auth/check-email', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
   async logout() {
     return this.request('/api/auth/logout', { method: 'POST' });
   }

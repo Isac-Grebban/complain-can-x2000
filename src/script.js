@@ -31,6 +31,8 @@
   let storage = null;
   let currentSession = null;
   let bootstrap = null;
+  let loginEmailCheckTimer = 0;
+  let lastCheckedEmail = '';
   const RATE_LIMIT_MS = 30000; // 30 seconds
   
   // User-specific cooldown functions using localStorage (now with hashed identifiers)
@@ -122,6 +124,67 @@
     loginStatus.style.color = '#bfdbfe';
   }
 
+  function setLoginButtonEnabled(enabled) {
+    if (!loginBtn) {
+      return;
+    }
+
+    loginBtn.disabled = !enabled;
+    loginBtn.style.opacity = enabled ? '1' : '0.6';
+    loginBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  }
+
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+  }
+
+  async function checkLoginEmail(email) {
+    if (!storage || bootstrap?.authMode !== 'supabase') {
+      return;
+    }
+
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    lastCheckedEmail = normalizedEmail;
+
+    if (!normalizedEmail) {
+      setLoginButtonEnabled(false);
+      setLoginStatus('Enter your work email and we will let the magic happen.');
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setLoginButtonEnabled(false);
+      setLoginStatus('That email looks a bit suspicious. Try a real one.', true);
+      return;
+    }
+
+    try {
+      setLoginButtonEnabled(false);
+      setLoginStatus('Checking whether this email is on the VIP complaint list...');
+      const result = await storage.checkEmail(normalizedEmail);
+      if (lastCheckedEmail !== normalizedEmail) {
+        return;
+      }
+
+      if (result.allowed) {
+        setLoginButtonEnabled(true);
+        setLoginStatus('Looks good. We can send the sign-in link now.');
+        return;
+      }
+
+      setLoginButtonEnabled(false);
+      setLoginStatus('This email is not on the guest list. The can remains unconvinced.', true);
+    } catch (error) {
+      if (lastCheckedEmail !== normalizedEmail) {
+        return;
+      }
+
+      setLoginButtonEnabled(false);
+      setLoginStatus('Could not check that email right now. Please try again in a moment.', true);
+      console.error('Failed to check email allowlist:', error.message);
+    }
+  }
+
   function clearUserSession() {
     currentSession = null;
     console.log('🗑️ Session cleared');
@@ -175,6 +238,8 @@
       loginEmail.hidden = !isSupabaseAuth;
       loginEmail.disabled = !isSupabaseAuth;
     }
+
+    setLoginButtonEnabled(!isSupabaseAuth);
 
     if (loginSubtitle) {
       loginSubtitle.textContent = subtitleText;
@@ -267,6 +332,18 @@
   // Login button click
   if (loginBtn) {
     loginBtn.addEventListener('click', handleLogin);
+  }
+
+  if (loginEmail) {
+    loginEmail.addEventListener('input', () => {
+      if (loginEmailCheckTimer) {
+        clearTimeout(loginEmailCheckTimer);
+      }
+
+      loginEmailCheckTimer = globalThis.setTimeout(() => {
+        checkLoginEmail(loginEmail.value);
+      }, 250);
+    });
   }
 
   // Logout button click
