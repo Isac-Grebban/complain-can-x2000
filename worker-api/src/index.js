@@ -464,25 +464,27 @@ async function loadState(env) {
     throw httpError(500, `Unsupported storage mode: ${storageMode}`);
   }
 
-  if (!env.GITHUB_STORAGE_TOKEN || !env.GIST_ID) {
+  const { token, gistId, filename } = getGistConfig(env);
+  if (!token || !gistId) {
     throw httpError(500, 'GitHub Gist storage is not configured on the Worker.');
   }
 
-  const response = await fetch(`https://api.github.com/gists/${env.GIST_ID}`, {
+  const response = await fetch(`https://api.github.com/gists/${gistId}`, {
     headers: {
       Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${env.GITHUB_STORAGE_TOKEN}`
+      Authorization: `Bearer ${token}`,
+      'User-Agent': 'complain-can-worker'
     }
   });
 
   if (!response.ok) {
-    throw httpError(502, `Failed to load shared state from GitHub Gist (${response.status}).`);
+    throw httpError(502, `Failed to load shared state from GitHub Gist (${response.status}): ${await readGithubError(response)}`);
   }
 
   const gist = await response.json();
-  const gistFile = gist.files?.[env.GIST_FILENAME || DEFAULT_GIST_FILENAME];
+  const gistFile = gist.files?.[filename];
   if (!gistFile?.content) {
-    throw httpError(502, `The GitHub Gist does not contain ${env.GIST_FILENAME || DEFAULT_GIST_FILENAME}.`);
+    throw httpError(502, `The GitHub Gist does not contain ${filename}.`);
   }
 
   return normalizeState(JSON.parse(gistFile.content));
@@ -500,20 +502,22 @@ async function saveState(env, nextState) {
     return structuredClone(memoryState);
   }
 
-  if (!env.GITHUB_STORAGE_TOKEN || !env.GIST_ID) {
+  const { token, gistId, filename } = getGistConfig(env);
+  if (!token || !gistId) {
     throw httpError(500, 'GitHub Gist storage is not configured on the Worker.');
   }
 
-  const response = await fetch(`https://api.github.com/gists/${env.GIST_ID}`, {
+  const response = await fetch(`https://api.github.com/gists/${gistId}`, {
     method: 'PATCH',
     headers: {
       Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${env.GITHUB_STORAGE_TOKEN}`,
+      Authorization: `Bearer ${token}`,
+      'User-Agent': 'complain-can-worker',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       files: {
-        [env.GIST_FILENAME || DEFAULT_GIST_FILENAME]: {
+        [filename]: {
           content: JSON.stringify(normalized, null, 2)
         }
       }
@@ -521,7 +525,7 @@ async function saveState(env, nextState) {
   });
 
   if (!response.ok) {
-    throw httpError(502, `Failed to save shared state to GitHub Gist (${response.status}).`);
+    throw httpError(502, `Failed to save shared state to GitHub Gist (${response.status}): ${await readGithubError(response)}`);
   }
 
   return normalized;
@@ -616,6 +620,28 @@ function getAuthMode(env) {
 
 function getStorageMode(env) {
   return String(env.STORAGE_MODE || (env.GIST_ID && env.GITHUB_STORAGE_TOKEN ? 'gist' : 'memory')).toLowerCase();
+}
+
+function getGistConfig(env) {
+  return {
+    token: String(env.GITHUB_STORAGE_TOKEN || '').trim(),
+    gistId: String(env.GIST_ID || '').trim(),
+    filename: String(env.GIST_FILENAME || DEFAULT_GIST_FILENAME).trim() || DEFAULT_GIST_FILENAME
+  };
+}
+
+async function readGithubError(response) {
+  try {
+    const payload = await response.clone().json();
+    return payload.message || payload.error || 'GitHub API request failed.';
+  } catch {
+    try {
+      const text = (await response.clone().text()).trim();
+      return text || 'GitHub API request failed.';
+    } catch {
+      return 'GitHub API request failed.';
+    }
+  }
 }
 
 function buildApiUrl(request, env, path) {
