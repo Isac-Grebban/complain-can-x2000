@@ -15,6 +15,7 @@ const memoryCooldowns = new Map();
 const API_ROUTES = {
   'GET /api/health': handleHealth,
   'GET /api/bootstrap': handleBootstrap,
+  'POST /api/auth/check-email': handleCheckEmail,
   'GET /api/auth/session': handleSession,
   'GET /api/auth/login': handleLogin,
   'GET /api/auth/callback': handleGithubCallback,
@@ -73,6 +74,24 @@ async function handleSession(request, env) {
     ? { authenticated: true, authMode: getAuthMode(env), user: session.user }
     : { authenticated: false, authMode: getAuthMode(env) }
   ));
+}
+
+async function handleCheckEmail(request, env) {
+  const body = await readJson(request);
+  const email = String(body.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return withCors(request, env, jsonResponse({ allowed: false, reason: 'missing-email' }, 400));
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return withCors(request, env, jsonResponse({ allowed: false, reason: 'invalid-email' }, 200));
+  }
+
+  return withCors(request, env, jsonResponse({
+    allowed: isAllowedEmail(email, env),
+    reason: isAllowedEmail(email, env) ? 'allowed' : 'not-allowed'
+  }));
 }
 
 async function handleLogout(request, env) {
