@@ -158,7 +158,7 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ authenticated: false });
 });
 
-app.get('/api/state', async (_req, res, next) => {
+app.get('/api/state', requireSession, async (_req, res, next) => {
   try {
     res.json(await loadState());
   } catch (error) {
@@ -753,10 +753,25 @@ function buildStatistics(memberCounts, entries) {
   }]));
 
   for (const entry of entries) {
-    if (entry.addedBy && statistics[entry.addedBy]) {
-      statistics[entry.addedBy].given += 1;
+    const author = getHistoryAuthor(entry);
+    if (!author) {
+      continue;
     }
+
+    if (!statistics[author]) {
+      statistics[author] = {
+        given: 0,
+        received: memberCounts[author] || 0
+      };
+    }
+
+    statistics[author].given += 1;
   }
 
   return statistics;
+}
+
+function getHistoryAuthor(entry) {
+  const author = String(entry?.addedBy || '').trim();
+  return author || '';
 }
