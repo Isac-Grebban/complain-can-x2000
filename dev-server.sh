@@ -24,4 +24,4 @@ echo "🌐 App: http://localhost:3000/index-dev.html"
 echo "🌐 Main entry: http://localhost:3000/"
 echo ""
 
-AUTH_MODE="${AUTH_MODE:-development}" STORAGE_MODE="${STORAGE_MODE:-local}" npm --prefix "$PROXY_DIR" start
+npm --prefix "$PROXY_DIR" start

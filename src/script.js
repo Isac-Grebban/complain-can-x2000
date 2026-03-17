@@ -937,23 +937,35 @@
   // Statistics functions
   function generateStatsData() {
     const statsData = {};
-    
-    // Initialize stats for all members
-    MEMBERS.forEach(member => {
-      statsData[member] = {
-        given: 0,     // Complaints they reported about others
-        received: memberCounts[member] || 0  // Complaints they received
-      };
-    });
-    
-    // Calculate given complaints from history
-    history.forEach(entry => {
-      if (entry.addedBy && statsData[entry.addedBy] !== undefined) {
-        statsData[entry.addedBy].given++;
+    const participants = new Set(MEMBERS);
+
+    history.forEach((entry) => {
+      const author = getHistoryAuthor(entry);
+      if (author) {
+        participants.add(author);
       }
     });
-    
+
+    participants.forEach((participant) => {
+      statsData[participant] = {
+        given: 0,
+        received: memberCounts[participant] || 0
+      };
+    });
+
+    history.forEach((entry) => {
+      const author = getHistoryAuthor(entry);
+      if (author && statsData[author]) {
+        statsData[author].given++;
+      }
+    });
+
     return statsData;
+  }
+
+  function getHistoryAuthor(entry) {
+    const author = String(entry?.addedBy || '').trim();
+    return author || '';
   }
 
   function getWeekKey(date) {
@@ -967,6 +979,11 @@
   
   function generateTimeBasedData() {
     if (history.length === 0) return { timePoints: [], memberData: {} };
+
+    const participants = Array.from(new Set([
+      ...MEMBERS,
+      ...history.map((entry) => getHistoryAuthor(entry)).filter(Boolean)
+    ]));
     
     // Sort history by timestamp
     const sortedHistory = [...history].sort((a, b) => 
@@ -975,7 +992,7 @@
     
     // Initialize member data
     const memberData = {};
-    MEMBERS.forEach(member => {
+    participants.forEach(member => {
       memberData[member] = {
         given: [],
         received: []
@@ -995,15 +1012,16 @@
           given: {},
           received: {}
         };
-        MEMBERS.forEach(member => {
+        participants.forEach(member => {
           weeklyData[weekKey].given[member] = 0;
           weeklyData[weekKey].received[member] = 0;
         });
       }
       
       // Count complaints for this week
-      if (entry.addedBy && weeklyData[weekKey].given[entry.addedBy] !== undefined) {
-        weeklyData[weekKey].given[entry.addedBy]++;
+      const author = getHistoryAuthor(entry);
+      if (author && weeklyData[weekKey].given[author] !== undefined) {
+        weeklyData[weekKey].given[author]++;
       }
       if (entry.member && weeklyData[weekKey].received[entry.member] !== undefined) {
         weeklyData[weekKey].received[entry.member]++;
@@ -1026,7 +1044,7 @@
           given: {},
           received: {}
         };
-        MEMBERS.forEach(member => {
+        participants.forEach(member => {
           weeklyData[earlierWeekKey].given[member] = 0;
           weeklyData[earlierWeekKey].received[member] = 0;
         });
@@ -1039,7 +1057,7 @@
     // Calculate cumulative data for each week
     const cumulativeGiven = {};
     const cumulativeReceived = {};
-    MEMBERS.forEach(member => {
+    participants.forEach(member => {
       cumulativeGiven[member] = 0;
       cumulativeReceived[member] = 0;
     });
@@ -1066,7 +1084,7 @@
       });
       
       // Record current cumulative values for all members
-      MEMBERS.forEach(member => {
+      participants.forEach(member => {
         memberData[member].given.push(cumulativeGiven[member]);
         memberData[member].received.push(cumulativeReceived[member]);
       });
@@ -1356,7 +1374,9 @@
     });
     
     // Draw lines for each member's given complaints
-    MEMBERS.forEach((member, memberIndex) => {
+    const participants = Object.keys(memberData);
+
+    participants.forEach((member, memberIndex) => {
       const data = memberData[member];
       if (data?.given.some(val => val > 0)) { // Only draw if member has given complaints
         const color = colors[memberIndex % colors.length];
@@ -1403,7 +1423,7 @@
     });
     
     // Draw lines for each member's received complaints (dashed)
-    MEMBERS.forEach((member, memberIndex) => {
+    participants.forEach((member, memberIndex) => {
       const data = memberData[member];
       if (data?.received.some(val => val > 0)) { // Only draw if member has received complaints
         const color = colors[memberIndex % colors.length];
