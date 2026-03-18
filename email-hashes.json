@@ -1,6 +1,6 @@
 {
   "comment": "Allowed email addresses for Grebban team members - NOW USING SECURE SHA256 HASHES",
-  "version": "2.0.0",
+  "version": "2.3.0",
   "hashingNote": "Emails are hashed with SHA256 for privacy. Plain emails are no longer stored.",
   "allowedEmailHashes": [
     "23a1085aca88e487383370c173f4fa85979a707b156032cb8df64e4ae99562d6",
