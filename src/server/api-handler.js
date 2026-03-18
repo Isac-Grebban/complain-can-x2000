@@ -838,7 +838,11 @@ function parseCookies(header) {
           return [part, ''];
         }
 
-        return [part.slice(0, separatorIndex), decodeURIComponent(part.slice(separatorIndex + 1))];
+        try {
+          return [part.slice(0, separatorIndex), decodeURIComponent(part.slice(separatorIndex + 1))];
+        } catch {
+          return [part.slice(0, separatorIndex), part.slice(separatorIndex + 1)];
+        }
       })
   );
 }
@@ -934,7 +938,7 @@ function withCors(request, env, response) {
     headers.set('Vary', 'Origin');
   }
 
-  headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
 
   return new Response(response.body, {
