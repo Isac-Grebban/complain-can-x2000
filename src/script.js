@@ -229,7 +229,7 @@
     } else if (isSupabaseAuth) {
       buttonText = 'Email Me A Sign-In Link';
       subtitleText = 'Sign in with your email to access the complaint can.';
-      footerText = 'We will send you a one-time sign-in link or code by email.';
+      footerText = 'We will send you a one-time sign-in link by email.';
     }
 
     loginBtn.textContent = buttonText;
@@ -1068,9 +1068,9 @@
       const weekData = weeklyData[weekKey];
       
       // Update cumulative counts
-      MEMBERS.forEach(member => {
-        cumulativeGiven[member] += weekData.given[member];
-        cumulativeReceived[member] += weekData.received[member];
+      participants.forEach(member => {
+        cumulativeGiven[member] += weekData.given[member] || 0;
+        cumulativeReceived[member] += weekData.received[member] || 0;
       });
       
       // Create time point for this week
