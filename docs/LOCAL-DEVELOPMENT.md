@@ -73,8 +73,4 @@ Use a separate browser tab for `http://localhost:3000/index-dev.html`.
 
 ## Migration to Production
 
-When ready to use GitHub OAuth and shared persistence:
-1. Copy `proxy-server/.env.example` to `proxy-server/.env`
-2. Set `AUTH_MODE=github`
-3. Set `STORAGE_MODE=gist`
-4. Configure the GitHub OAuth app callback to `/api/auth/callback`
+The production app runs on Cloudflare Pages with Supabase email auth. Configure `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `ALLOWED_EMAILS` in your Cloudflare Pages environment variables.

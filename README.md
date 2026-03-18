@@ -4,11 +4,8 @@ A team app for collecting complaints and turning them into the next shared treat
 
 ## Quick Start
 
-The application now runs through a small proxy server so authentication and persistence stay off the client.
-
 1. Run `./dev-server.sh`
 2. Open `http://localhost:3000/index-dev.html`
-3. Copy `proxy-server/.env.example` to `proxy-server/.env` when you are ready to enable GitHub OAuth and GitHub Gist storage
 
 ## ✨ Features
 
@@ -18,16 +15,16 @@ The application now runs through a small proxy server so authentication and pers
 - 🏦 **Withdraw Funds**: Cash out the can and archive the period's stats
 - 📊 **Statistics & History**: View complaint history and analytics
 - 💰 **Withdrawal History**: Browse past withdrawals with archived leaderboards
-- 🔐 **GitHub Authentication**: Authorized GitHub users only
-- 🎵 **Sound Effects**: Satisfying coin drop sounds
+- 🔐 **Email Authentication**: Supabase magic link sign-in
+- 🎵 **Sound Effects**: Satisfying coin sounds
 - 📱 **Responsive Design**: Works on all devices
 
 ## Technical Details
 
 - **Frontend**: Pure HTML, CSS, JavaScript
-- **Backend**: Express proxy server
-- **Authentication**: GitHub OAuth handled server-side
-- **Persistence**: Local JSON in development or GitHub Gist in shared environments
+- **Backend**: Cloudflare Pages Functions (production), Express proxy (local dev)
+- **Authentication**: Supabase email magic link
+- **Persistence**: GitHub Gist via server-side API
 
 ## Local Development
 
@@ -35,26 +32,22 @@ The application now runs through a small proxy server so authentication and pers
 ./dev-server.sh
 ```
 
-By default the proxy starts in `AUTH_MODE=development` and `STORAGE_MODE=local`, so you can work without GitHub setup. When you add `proxy-server/.env`, the same server can switch to GitHub OAuth and shared Gist persistence.
+By default the proxy starts in development mode with local auth and local storage. Configure `proxy-server/.env` to enable Supabase auth and Gist persistence.
 
-📖 **[Complete Local Development Guide →](./docs/LOCAL-DEVELOPMENT.md)**
+📖 **[Local Development Guide →](./docs/LOCAL-DEVELOPMENT.md)**
 
 ## 📚 Documentation
 
 | Guide | Purpose |
 |-------|---------|
-| **[📋 QUICK-START.md](./docs/QUICK-START.md)** | **Deployment and environment setup** |
-| [☁️ CLOUDFLARE-PAGES-WORKERS-SETUP.md](./docs/CLOUDFLARE-PAGES-WORKERS-SETUP.md) | Cloudflare migration and external setup plan |
+| **[📋 QUICK-START.md](./docs/QUICK-START.md)** | Deployment and environment setup |
+| [☁️ CLOUDFLARE-PAGES-WORKERS-SETUP.md](./docs/CLOUDFLARE-PAGES-WORKERS-SETUP.md) | Cloudflare Pages setup |
 | [📖 SETUP.md](./docs/SETUP.md) | Detailed setup with troubleshooting |
 | [💻 LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Local development guide |
 
 ## Access Control
 
-Set one or more of these environment variables in `proxy-server/.env` to restrict access:
-
-- `ALLOWED_GITHUB_USERS`
-- `ALLOWED_GITHUB_ORGS`
-- `ALLOWED_GITHUB_EMAILS`
+Set `ALLOWED_EMAILS` (comma-separated) in your Cloudflare Pages environment variables to restrict who can sign in.
 
 ## License
 
