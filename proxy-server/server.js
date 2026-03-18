@@ -501,7 +501,11 @@ function parseCookies(header) {
           return [part, ''];
         }
 
-        return [part.slice(0, separatorIndex), decodeURIComponent(part.slice(separatorIndex + 1))];
+        try {
+          return [part.slice(0, separatorIndex), decodeURIComponent(part.slice(separatorIndex + 1))];
+        } catch {
+          return [part.slice(0, separatorIndex), part.slice(separatorIndex + 1)];
+        }
       })
   );
 }

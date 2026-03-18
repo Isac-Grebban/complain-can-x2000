@@ -575,8 +575,6 @@
     updateDisplay();
     renderMemberStats();
     liftLid();
-    addCoinVisual(member);
-    playCoinSound();
     toggleReset();
     
     try {
@@ -588,6 +586,8 @@
       withdrawals = savedData.withdrawals || [];
       updateDisplay();
       renderMemberStats();
+      addCoinVisual(member);
+      playCoinSound();
       
       console.log(`Coin added for ${member}. Total: ${count}`);
     } catch (error) {
@@ -872,8 +872,8 @@
     try {
       // Create or reuse audio element
       if (!coinAudio) {
-        coinAudio = new Audio('assets/coin-drop-39914.mp3');
-        coinAudio.volume = 0.3; // Adjust volume (0.0 to 1.0)
+        coinAudio = new Audio('assets/money.mp3');
+        coinAudio.volume = 0.5; // Adjust volume (0.0 to 1.0)
       }
       // Reset and play (allows rapid clicks)
       coinAudio.currentTime = 0;

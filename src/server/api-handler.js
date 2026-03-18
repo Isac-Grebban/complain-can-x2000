@@ -9,6 +9,12 @@ const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_GIST_FILENAME = 'coins.json';
 
+function getSessionSecret(env) {
+  if (env.SESSION_SECRET) return env.SESSION_SECRET;
+  if (getAuthMode(env) === 'development') return 'development-session-secret';
+  throw httpError(500, 'SESSION_SECRET is required in production.');
+}
+
 let memoryState = createDefaultState();
 const memoryCooldowns = new Map();
 
@@ -130,7 +136,7 @@ async function handleLogin(request, env) {
       exp: Date.now() + SESSION_TTL_MS
     };
 
-    const sessionToken = await createSignedToken(sessionPayload, env.SESSION_SECRET || 'development-session-secret');
+    const sessionToken = await createSignedToken(sessionPayload, getSessionSecret(env));
     return redirect(nextTarget, {
       'Set-Cookie': serializeCookie(SESSION_COOKIE_NAME, sessionToken, {
         path: '/',
@@ -146,7 +152,7 @@ async function handleLogin(request, env) {
     throw httpError(500, 'GitHub OAuth is not configured on the server.');
   }
 
-  const stateToken = await createSignedToken({ next: nextTarget, exp: Date.now() + OAUTH_STATE_TTL_MS }, env.SESSION_SECRET || 'development-session-secret');
+  const stateToken = await createSignedToken({ next: nextTarget, exp: Date.now() + OAUTH_STATE_TTL_MS }, getSessionSecret(env));
   const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   authorizeUrl.searchParams.set('redirect_uri', env.GITHUB_OAUTH_CALLBACK_URL || buildApiUrl(request, env, '/api/auth/callback'));
@@ -169,7 +175,7 @@ async function handleGithubCallback(request, env) {
     throw httpError(400, 'GitHub authentication failed: missing code or state.');
   }
 
-  const state = await verifySignedToken(stateToken, env.SESSION_SECRET || 'development-session-secret');
+  const state = await verifySignedToken(stateToken, getSessionSecret(env));
   if (!state || state.exp < Date.now()) {
     throw httpError(400, 'GitHub authentication failed: invalid or expired state.');
   }
@@ -192,7 +198,7 @@ async function handleGithubCallback(request, env) {
     exp: Date.now() + SESSION_TTL_MS
   };
 
-  const sessionToken = await createSignedToken(sessionPayload, env.SESSION_SECRET || 'development-session-secret');
+  const sessionToken = await createSignedToken(sessionPayload, getSessionSecret(env));
   return redirect(state.next, {
     'Set-Cookie': serializeCookie(SESSION_COOKIE_NAME, sessionToken, {
       path: '/',
@@ -332,7 +338,7 @@ async function getSessionFromRequest(request, env) {
     return null;
   }
 
-  const session = await verifySignedToken(token, env.SESSION_SECRET || 'development-session-secret');
+  const session = await verifySignedToken(token, getSessionSecret(env));
   if (!session || session.exp < Date.now()) {
     return null;
   }
