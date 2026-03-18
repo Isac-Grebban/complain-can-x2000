@@ -588,7 +588,7 @@ async function setCooldown(env, login) {
   const key = `cooldown:${String(login || '').toLowerCase()}`;
   const now = Date.now();
   if (env.COOLDOWN_KV) {
-    await env.COOLDOWN_KV.put(key, String(now), { expirationTtl: Math.ceil(RATE_LIMIT_MS / 1000) });
+    await env.COOLDOWN_KV.put(key, String(now), { expirationTtl: Math.max(60, Math.ceil(RATE_LIMIT_MS / 1000)) });
     return;
   }
 
