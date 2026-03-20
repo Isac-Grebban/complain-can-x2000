@@ -32,7 +32,7 @@ A team app for collecting complaints and turning them into the next shared treat
 ./dev-server.sh
 ```
 
-By default the proxy starts in development mode with local auth and local storage. Configure `proxy-server/.env` to enable Supabase auth and Gist persistence.
+By default the proxy starts in development mode with local auth and local storage. Configure `proxy-server/.env` to enable GitHub OAuth and Gist persistence.
 
 📖 **[Local Development Guide →](./docs/LOCAL-DEVELOPMENT.md)**
 

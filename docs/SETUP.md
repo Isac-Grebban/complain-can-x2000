@@ -20,7 +20,10 @@ Follow these detailed steps to deploy your Complain Can app to GitHub Pages:
 1. Go to [https://gist.github.com/](https://gist.github.com/)
 2. Create a new gist with:
    - **Filename**: `coins.json`
-   - **Content**: Copy the content from your `data/coins.json` file
+   - **Content**: Paste the following seed JSON:
+     ```json
+     {"total":0,"members":{"Isac":0,"Hannah":0,"Andreas":0,"Karl":0,"Daniel":0,"Doug":0,"Marina":0},"history":[],"updated":""}
+     ```
    - Make sure it's **Public** (required for GitHub Pages to access it)
 3. Click "Create public gist"
 4. **Copy the Gist ID** from the URL (e.g., if URL is `https://gist.github.com/username/abc123def456`, the ID is `abc123def456`)
