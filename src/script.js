@@ -707,6 +707,7 @@
     // Show the fun modal instead of a boring alert
     const modal = document.getElementById('cheatModal');
     modal.hidden = false;
+    document.body.classList.add('modal-open');
     
     // Actually, let's provide a way to reset if needed (for testing)
     // This could be enabled by holding Shift while clicking or similar
@@ -787,10 +788,12 @@
   
   closeModalBtn?.addEventListener('click', () => {
     modal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   modalBackdrop?.addEventListener('click', () => {
     modal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
 
   // History modal event listeners
@@ -800,10 +803,12 @@
   
   closeHistoryModalBtn?.addEventListener('click', () => {
     historyModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   historyModalBackdrop?.addEventListener('click', () => {
     historyModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
 
   // Stats modal event listeners
@@ -813,10 +818,12 @@
   
   closeStatsModalBtn?.addEventListener('click', () => {
     statsModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   statsModalBackdrop?.addEventListener('click', () => {
     statsModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
 
   // Withdraw modal event listeners
@@ -830,10 +837,12 @@
   
   cancelWithdrawBtn?.addEventListener('click', () => {
     withdrawModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   withdrawModalBackdrop?.addEventListener('click', () => {
     withdrawModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   confirmWithdrawBtn?.addEventListener('click', performWithdraw);
@@ -848,10 +857,12 @@
   
   closeWithdrawalsModalBtn?.addEventListener('click', () => {
     withdrawalsModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
   
   withdrawalsModalBackdrop?.addEventListener('click', () => {
     withdrawalsModal.hidden = true;
+    document.body.classList.remove('modal-open');
   });
 
   // Lid lift animation
@@ -917,6 +928,7 @@
     // Set content and show modal
     historyContent.innerHTML = historyHtml;
     historyModal.hidden = false;
+    document.body.classList.add('modal-open');
   }
   
   // Helper function for time ago
@@ -1094,6 +1106,11 @@
   }
   
   let currentChartType = 'bar'; // Track current chart type
+  let chartFilters = {
+    showReported: true,
+    showComplaints: true,
+    hiddenMembers: new Set()
+  };
   
   function openStatsViewer() {
     const statsModal = document.getElementById('statsModal');
@@ -1116,11 +1133,12 @@
     // Setup toggle button event listeners
     setupChartToggle();
     
-    // Draw initial chart
-    drawChart();
-    
-    // Show modal
+    // Show modal first so canvas can measure its container
     statsModal.hidden = false;
+    document.body.classList.add('modal-open');
+    
+    // Draw initial chart (after modal is visible so getBoundingClientRect works)
+    drawChart();
   }
   
   function setupChartToggle() {
@@ -1152,63 +1170,134 @@
     });
   }
   
+  function isFilterActive() {
+    return !chartFilters.showReported || !chartFilters.showComplaints || chartFilters.hiddenMembers.size > 0;
+  }
+
   function updateLegend() {
     const statsLegend = document.getElementById('statsLegend');
+    const colors = [
+      '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', 
+      '#db2777', '#0891b2', '#65a30d'
+    ];
     
     if (currentChartType === 'bar') {
-      statsLegend.innerHTML = `
-        <div class="legend-item">
-          <div class="legend-color" style="background: #2563eb;"></div>
-          <span>Complaints Reported</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #dc2626;"></div>
-          <span>Complaints</span>
-        </div>
-      `;
-    } else {
-      // For line chart, show member-specific legend
-      const colors = [
-        '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', 
-        '#db2777', '#0891b2', '#65a30d'
-      ];
-      
       let legendHtml = '<div class="line-legend-container">';
+      legendHtml += '<p class="legend-hint">Psst… click stuff below to hide the evidence 🕵️</p>';
       
-      // Add explanation header
       legendHtml += `
         <div class="legend-section">
-          <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">Line Styles:</h4>
-          <div class="legend-item">
-            <div class="legend-line-dashed"></div>
-            <span>Reported (dashed line, ●)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-line-solid"></div>
-            <span>Complaints (solid line, ◆)</span>
-          </div>
+          <h4>Bar Styles:</h4>
+          <button type="button" class="legend-item legend-filter${chartFilters.showReported ? '' : ' legend-disabled'}" data-filter="reported" aria-pressed="${chartFilters.showReported}">
+            <div class="legend-color" style="background: rgba(255,255,255,0.4);"></div>
+            <span>Reported complaints (faded)</span>
+          </button>
+          <button type="button" class="legend-item legend-filter${chartFilters.showComplaints ? '' : ' legend-disabled'}" data-filter="complaints" aria-pressed="${chartFilters.showComplaints}">
+            <div class="legend-color" style="background: rgba(255,255,255,1);"></div>
+            <span>Complaints (solid)</span>
+          </button>
         </div>
       `;
       
-      // Add member colors
       legendHtml += `
         <div class="legend-section">
-          <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary); font-size: 0.9rem;">Members:</h4>
+          <h4>Members:</h4>
           <div class="legend-members">
       `;
       
       MEMBERS.forEach((member, index) => {
         const color = colors[index % colors.length];
+        const isHidden = chartFilters.hiddenMembers.has(member);
         legendHtml += `
-          <div class="legend-item">
+          <button type="button" class="legend-item legend-filter${isHidden ? ' legend-disabled' : ''}" data-filter-member="${member}" aria-pressed="${!isHidden}">
             <div class="legend-color" style="background: ${color};"></div>
             <span>${member}</span>
-          </div>
+          </button>
         `;
       });
       
-      legendHtml += '</div></div></div>';
+      legendHtml += '</div></div>';
+      if (isFilterActive()) {
+        legendHtml += '<button type="button" class="legend-reset-btn" data-reset-filters>Reset filters</button>';
+      }
+      legendHtml += '</div>';
       statsLegend.innerHTML = legendHtml;
+    } else {
+      let legendHtml = '<div class="line-legend-container">';
+      legendHtml += '<p class="legend-hint">Psst… click stuff below to hide the evidence 🕵️</p>';
+      
+      legendHtml += `
+        <div class="legend-section">
+          <h4>Line Styles:</h4>
+          <button type="button" class="legend-item legend-filter${chartFilters.showReported ? '' : ' legend-disabled'}" data-filter="reported" aria-pressed="${chartFilters.showReported}">
+            <div class="legend-line-dashed"></div>
+            <span>Reported complaints (dashed, ●)</span>
+          </button>
+          <button type="button" class="legend-item legend-filter${chartFilters.showComplaints ? '' : ' legend-disabled'}" data-filter="complaints" aria-pressed="${chartFilters.showComplaints}">
+            <div class="legend-line-solid"></div>
+            <span>Complaints (solid, ◆)</span>
+          </button>
+        </div>
+      `;
+      
+      legendHtml += `
+        <div class="legend-section">
+          <h4>Members:</h4>
+          <div class="legend-members">
+      `;
+      
+      MEMBERS.forEach((member, index) => {
+        const color = colors[index % colors.length];
+        const isHidden = chartFilters.hiddenMembers.has(member);
+        legendHtml += `
+          <button type="button" class="legend-item legend-filter${isHidden ? ' legend-disabled' : ''}" data-filter-member="${member}" aria-pressed="${!isHidden}">
+            <div class="legend-color" style="background: ${color};"></div>
+            <span>${member}</span>
+          </button>
+        `;
+      });
+      
+      legendHtml += '</div></div>';
+      if (isFilterActive()) {
+        legendHtml += '<button type="button" class="legend-reset-btn" data-reset-filters>Reset filters</button>';
+      }
+      legendHtml += '</div>';
+      statsLegend.innerHTML = legendHtml;
+    }
+    
+    // Attach click handlers to filter items
+    statsLegend.querySelectorAll('.legend-filter').forEach(el => {
+      el.addEventListener('click', () => {
+        const filterType = el.dataset.filter;
+        const filterMember = el.dataset.filterMember;
+        
+        if (filterType === 'reported') {
+          chartFilters.showReported = !chartFilters.showReported;
+        } else if (filterType === 'complaints') {
+          chartFilters.showComplaints = !chartFilters.showComplaints;
+        } else if (filterMember) {
+          if (chartFilters.hiddenMembers.has(filterMember)) {
+            chartFilters.hiddenMembers.delete(filterMember);
+          } else {
+            chartFilters.hiddenMembers.add(filterMember);
+          }
+        }
+        
+        updateLegend();
+        drawChart();
+      });
+    });
+    
+    // Attach reset button handler
+    const resetBtn = statsLegend.querySelector('[data-reset-filters]');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        chartFilters.showReported = true;
+        chartFilters.showComplaints = true;
+        chartFilters.hiddenMembers.clear();
+        updateLegend();
+        drawChart();
+      });
     }
   }
   
@@ -1222,22 +1311,52 @@
     }
   }
   
+  function setupHiDPICanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const width = rect.width || 500;
+    const height = 300;
+    
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return { ctx, width, height };
+  }
+
   function drawStatsChart(statsData) {
     const canvas = document.getElementById('statsChart');
-    const ctx = canvas.getContext('2d');
+    const { ctx, width, height } = setupHiDPICanvas(canvas);
     
     // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, width, height);
     
     const members = Object.keys(statsData);
+    const totalComplaints = Object.values(statsData).reduce((sum, d) => sum + d.given + d.received, 0);
+    
+    if (totalComplaints === 0) {
+      ctx.fillStyle = '#a0a0a0';
+      ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No complaints yet — chart will appear here', width / 2, height / 2);
+      return;
+    }
+
+    const colors = [
+      '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', 
+      '#db2777', '#0891b2', '#65a30d'
+    ];
     const maxValue = Math.max(
       ...Object.values(statsData).map(data => Math.max(data.given, data.received)),
       1 // Ensure minimum of 1 to avoid division by zero
     );
     
     // Chart dimensions
-    const chartWidth = canvas.width - 100;
-    const chartHeight = canvas.height - 80;
+    const chartWidth = width - 100;
+    const chartHeight = height - 60;
     const chartX = 60;
     const chartY = 40;
     const barWidth = chartWidth / (members.length * 2 + 1);
@@ -1249,28 +1368,34 @@
     
     // Draw bars and labels
     members.forEach((member, index) => {
+      if (chartFilters.hiddenMembers.has(member)) return;
       const data = statsData[member];
+      const color = colors[index % colors.length];
       const x = chartX + (index * 2 + 1) * barWidth;
       
-      // Given bar (blue)
-      const givenHeight = (data.given / maxValue) * chartHeight;
-      ctx.fillStyle = '#2563eb';
-      ctx.fillRect(x - barWidth * 0.4, chartY + chartHeight - givenHeight, barWidth * 0.35, givenHeight);
+      // Given bar (faded color)
+      const givenHeight = chartFilters.showReported ? (data.given / maxValue) * chartHeight : 0;
+      if (chartFilters.showReported) {
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = color;
+        ctx.fillRect(x - barWidth * 0.4, chartY + chartHeight - givenHeight, barWidth * 0.35, givenHeight);
+        ctx.globalAlpha = 1.0;
+      }
       
-      // Received bar (red)
-      const receivedHeight = (data.received / maxValue) * chartHeight;
-      ctx.fillStyle = '#dc2626';
-      ctx.fillRect(x + barWidth * 0.05, chartY + chartHeight - receivedHeight, barWidth * 0.35, receivedHeight);
-      
-      // Member name
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(member, x, chartY + chartHeight + 20);
+      // Received bar (solid color)
+      const receivedHeight = chartFilters.showComplaints ? (data.received / maxValue) * chartHeight : 0;
+      if (chartFilters.showComplaints) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x + barWidth * 0.05, chartY + chartHeight - receivedHeight, barWidth * 0.35, receivedHeight);
+      }
+
       
       // Values on bars if they're large enough
-      if (givenHeight > 20) {
+      ctx.fillStyle = '#ffffff';
+      if (chartFilters.showReported && givenHeight > 20) {
         ctx.fillText(data.given.toString(), x - barWidth * 0.225, chartY + chartHeight - givenHeight + 15);
       }
-      if (receivedHeight > 20) {
+      if (chartFilters.showComplaints && receivedHeight > 20) {
         ctx.fillText(data.received.toString(), x + barWidth * 0.225, chartY + chartHeight - receivedHeight + 15);
       }
     });
@@ -1304,10 +1429,10 @@
   
   function drawLineChart(timeData) {
     const canvas = document.getElementById('statsChart');
-    const ctx = canvas.getContext('2d');
+    const { ctx, width, height } = setupHiDPICanvas(canvas);
     
     // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, width, height);
     
     const { timePoints, memberData } = timeData;
     
@@ -1316,13 +1441,13 @@
       ctx.fillStyle = '#a0a0a0';
       ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No historical data available', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('No historical data available', width / 2, height / 2);
       return;
     }
     
     // Chart dimensions
-    const chartWidth = canvas.width - 120;
-    const chartHeight = canvas.height - 100;
+    const chartWidth = width - 120;
+    const chartHeight = height - 100;
     const chartX = 80;
     const chartY = 40;
     
@@ -1376,9 +1501,11 @@
     // Draw lines for each member's given complaints
     const participants = Object.keys(memberData);
 
-    participants.forEach((member, memberIndex) => {
-      const data = memberData[member];
-      if (data?.given.some(val => val > 0)) { // Only draw if member has given complaints
+    if (chartFilters.showReported) {
+      participants.forEach((member, memberIndex) => {
+        if (chartFilters.hiddenMembers.has(member)) return;
+        const data = memberData[member];
+        if (data?.given.some(val => val > 0)) {
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
@@ -1421,11 +1548,14 @@
         });
       }
     });
+    }
     
     // Draw lines for each member's received complaints (dashed)
+    if (chartFilters.showComplaints) {
     participants.forEach((member, memberIndex) => {
+      if (chartFilters.hiddenMembers.has(member)) return;
       const data = memberData[member];
-      if (data?.received.some(val => val > 0)) { // Only draw if member has received complaints
+      if (data?.received.some(val => val > 0)) {
         const color = colors[memberIndex % colors.length];
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
@@ -1472,6 +1602,7 @@
         });
       }
     });
+    }
     
     // Draw axes
     ctx.setLineDash([]);
@@ -1553,6 +1684,7 @@
     }
     
     withdrawModal.hidden = false;
+    document.body.classList.add('modal-open');
   }
   
   async function performWithdraw() {
@@ -1566,6 +1698,7 @@
     if (!session) {
       alert('Please log in to withdraw funds');
       withdrawModal.hidden = true;
+      document.body.classList.remove('modal-open');
       return;
     }
     
@@ -1610,6 +1743,7 @@
       toggleReset();
       
       withdrawModal.hidden = true;
+      document.body.classList.remove('modal-open');
       
       setTimeout(() => {
         alert(`Successfully withdrew ${totalAmount} SEK! 🎉\nThe can has been reset for a new period.`);
@@ -1629,6 +1763,7 @@
       if (error.status === 401) {
         clearUserSession();
         withdrawModal.hidden = true;
+        document.body.classList.remove('modal-open');
         showLoginModal();
       }
 
@@ -1648,6 +1783,7 @@
         </div>
       `;
       withdrawalsModal.hidden = false;
+      document.body.classList.add('modal-open');
       return;
     }
     
@@ -1746,6 +1882,7 @@
     
     withdrawalsContent.innerHTML = html;
     withdrawalsModal.hidden = false;
+    document.body.classList.add('modal-open');
   }
   
   // Global function to draw chart when section is expanded
