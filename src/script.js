@@ -913,7 +913,7 @@
             <div class="history-item">
               <div class="history-details">
                 <div class="history-action">
-                  🪙 <strong style="color: var(--accent);">${entry.addedBy}</strong> added a coin for <strong style="color: var(--accent);">${entry.member}</strong>
+                  🪙 <strong style="color: var(--accent);">${getHistoryAuthor(entry)}</strong> added a coin for <strong style="color: var(--accent);">${entry.member}</strong>
                 </div>
                 <div class="history-meta">
                   <span>${formattedTime}</span>
@@ -976,8 +976,19 @@
   }
 
   function getHistoryAuthor(entry) {
-    const author = String(entry?.addedBy || '').trim();
-    return author || '';
+    const raw = String(entry?.addedBy || '').trim();
+    if (!raw) return '';
+    
+    // Direct match against MEMBERS
+    const directMatch = MEMBERS.find(m => m.toLowerCase() === raw.toLowerCase());
+    if (directMatch) return directMatch;
+    
+    // Check if the value (e.g. email) contains a member name
+    const lower = raw.toLowerCase();
+    const memberMatch = MEMBERS.find(m => lower.includes(m.toLowerCase()));
+    if (memberMatch) return memberMatch;
+    
+    return raw;
   }
 
   function getWeekKey(date) {
@@ -1906,7 +1917,7 @@
       const timeAgo = getTimeAgo(date);
       return `
         <div class="withdrawal-history-item">
-          <span class="withdrawal-history-action">🪙 <strong>${entry.addedBy}</strong> → <strong>${entry.member}</strong></span>
+          <span class="withdrawal-history-action">🪙 <strong>${getHistoryAuthor(entry)}</strong> → <strong>${entry.member}</strong></span>
           <span class="withdrawal-history-time">${timeAgo}</span>
         </div>
       `;
