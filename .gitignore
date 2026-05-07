@@ -22,9 +22,6 @@ Thumbs.db
 *.temp
 .cache/
 
-# Optional: Uncomment to exclude legacy server files from repo
-# legacy-server/
-
 # Log files
 *.log
 logs/
